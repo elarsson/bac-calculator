@@ -222,7 +222,8 @@ export class DrinkHistoryComponent {
 
   formatVolumeCl(ml: number): string {
     const cl = ml / 10;
-    return Number.isInteger(cl) ? `${cl} cl` : `${cl.toFixed(1)} cl`;
+    if (Number.isInteger(cl)) return `${cl} cl`;
+    return `${cl.toLocaleString('sv-SE', { maximumFractionDigits: 1 })} cl`;
   }
 
   formatTime(iso: string): string {

@@ -136,7 +136,10 @@ export class BacChartComponent implements OnInit, OnDestroy {
             const x = items[0].parsed.x;
             return x != null ? new Date(x).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
           },
-          label: (item) => `${((item.parsed.y as number) * 10).toFixed(2)} ‰`,
+          label: (item) => {
+            const promille = (item.parsed.y as number) * 10;
+            return `${promille.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ‰`;
+          },
         },
       },
     },
@@ -160,7 +163,10 @@ export class BacChartComponent implements OnInit, OnDestroy {
         ticks: {
           color: '#6a5848',
           font: { family: 'JetBrains Mono', size: 10 },
-          callback: (val) => ((val as number) * 10).toFixed(1) + ' ‰',
+          callback: (val) => {
+            const promille = (val as number) * 10;
+            return promille.toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ‰';
+          },
         },
         grid: { color: 'rgba(58, 46, 38, 0.5)' },
       },

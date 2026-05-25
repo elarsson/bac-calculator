@@ -17,7 +17,7 @@ import { currentSessionDrinks } from '../services/session.util';
         <div class="reading primary">
           <div class="label">Promillehalt</div>
           <div class="value mono" [class]="'tier-' + tier()">
-            {{ (curve().currentBac * 10).toFixed(2) }}<span class="unit">‰</span>
+            {{ formatPromille(curve().currentBac) }}<span class="unit">‰</span>
           </div>
           <div class="sub mono">{{ tierLabel() }}</div>
         </div>
@@ -40,7 +40,7 @@ import { currentSessionDrinks } from '../services/session.util';
 
         <div class="reading">
           <div class="label">Topp</div>
-          <div class="value mono">{{ (curve().peakBac * 10).toFixed(2) }}<span class="unit">‰</span></div>
+          <div class="value mono">{{ formatPromille(curve().peakBac) }}<span class="unit">‰</span></div>
           <div class="sub mono">
             @if (curve().peakAt) {
               @if (curve().peakAt! < now()) {
@@ -174,12 +174,19 @@ export class BacStatusComponent implements OnInit, OnDestroy {
   }
 
   formatDuration(ms: number): string {
-    if (ms <= 0) return 'now';
+    if (ms <= 0) return 'nu';
     const totalMin = Math.round(ms / 60000);
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
-    if (h === 0) return `${m}m`;
+    if (h === 0) return `${m}min`;
     if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
+    return `${h}h ${m}min`;
+  }
+
+  formatPromille(bac: number): string {
+    return (bac * 10).toLocaleString('sv-SE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 }
