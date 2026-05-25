@@ -2,7 +2,7 @@
   "name": "BAC Calculator",
   "short_name": "BAC",
   "description": "A personal pour log — track your blood alcohol content in real time.",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#1a1410",
   "theme_color": "#1a1410",
