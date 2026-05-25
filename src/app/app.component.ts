@@ -86,7 +86,7 @@ import { STOMACH_LABELS, StomachState } from './models/models';
       }
 
       <footer>
-        <p class="dim small">Watson · absorption av första ordningen · 0,015%/tim eliminering</p>
+        <p class="dim small">Watson · absorption av första ordningen · 0,15‰/tim eliminering</p>
       </footer>
     </main>
   `,

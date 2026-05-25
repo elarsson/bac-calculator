@@ -15,9 +15,9 @@ import { currentSessionDrinks } from '../services/session.util';
     } @else {
       <div class="grid">
         <div class="reading primary">
-          <div class="label">Beräknad BAK</div>
+          <div class="label">Promillehalt</div>
           <div class="value mono" [class]="'tier-' + tier()">
-            {{ curve().currentBac.toFixed(3) }}<span class="unit">%</span>
+            {{ (curve().currentBac * 10).toFixed(2) }}<span class="unit">‰</span>
           </div>
           <div class="sub mono">{{ tierLabel() }}</div>
         </div>
@@ -40,7 +40,7 @@ import { currentSessionDrinks } from '../services/session.util';
 
         <div class="reading">
           <div class="label">Topp</div>
-          <div class="value mono">{{ curve().peakBac.toFixed(3) }}<span class="unit">%</span></div>
+          <div class="value mono">{{ (curve().peakBac * 10).toFixed(2) }}<span class="unit">‰</span></div>
           <div class="sub mono">
             @if (curve().peakAt) {
               @if (curve().peakAt! < now()) {
