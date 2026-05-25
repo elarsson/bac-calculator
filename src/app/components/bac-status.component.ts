@@ -125,8 +125,7 @@ export class BacStatusComponent implements OnInit, OnDestroy {
   tier = computed(() => {
     const b = this.curve().currentBac;
     if (b <= 0) return 'clear';
-    if (b < 0.03) return 'low';
-    if (b < 0.06) return 'mid';
+    if (b < 0.02) return 'low';
     if (b < 0.10) return 'high';
     return 'extreme';
   });
@@ -134,10 +133,9 @@ export class BacStatusComponent implements OnInit, OnDestroy {
   tierLabel = computed(() => {
     switch (this.tier()) {
       case 'clear': return 'nykter';
-      case 'low': return 'mild';
-      case 'mid': return 'måttlig';
-      case 'high': return 'hög';
-      case 'extreme': return 'mycket hög';
+      case 'low': return 'under körgränsen';
+      case 'high': return 'rattfylleri';
+      case 'extreme': return 'grovt rattfylleri';
     }
     return '';
   });

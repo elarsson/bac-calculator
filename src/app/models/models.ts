@@ -49,9 +49,9 @@ export const DRINK_CATEGORIES: DrinkCategory[] = [
     label: 'Öl',
     icon: '🍺',
     strengthPresets: [
-      { label: '2,8% Folköl', abv: 2.8 },
-      { label: '3,5% Folköl', abv: 3.5, default: true },
-      { label: '5,2% Starköl', abv: 5.2 },
+      { label: 'Folköl 2,8%', abv: 2.8 },
+      { label: 'Folköl 3,5%', abv: 3.5, default: true },
+      { label: 'Starköl 5,2%', abv: 5.2 },
     ],
     volumePresets: [
       { label: '33 cl', volumeCl: 33 },

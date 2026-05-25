@@ -1,6 +1,6 @@
 {
-  "name": "BAC Calculator",
-  "short_name": "BAC",
+  "name": "Fyllekompisen",
+  "short_name": "Fyllekompisen",
   "description": "Din personliga drinklogg — följ din promillehalt i realtid.",
   "start_url": "./",
   "display": "standalone",
