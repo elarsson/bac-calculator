@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1a1410"/>
+  <text
+    x="256" y="330"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="196"
+    font-weight="500"
+    fill="#d4974a"
+    text-anchor="middle"
+    letter-spacing="4"
+  >BAC</text>
+</svg>

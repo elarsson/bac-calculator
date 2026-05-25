@@ -18,7 +18,11 @@
             "browser": "src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.app.json",
-            "assets": [],
+            "assets": [
+              { "glob": "manifest.webmanifest", "input": "src", "output": "/" },
+              { "glob": "sw.js", "input": "src", "output": "/" },
+              { "glob": "**/*", "input": "src/icons", "output": "/icons" }
+            ],
             "styles": ["src/styles.css"],
             "scripts": []
           },

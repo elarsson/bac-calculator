@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { StorageService } from './services/storage.service';
 import { BacStatusComponent } from './components/bac-status.component';
 import { BacChartComponent } from './components/bac-chart.component';
-import { AddDrinkComponent } from './components/add-drink.component';
+import { AddDrinkModalComponent } from './components/add-drink-modal.component';
 import { DrinkHistoryComponent } from './components/drink-history.component';
 import { ProfileEditorComponent } from './components/profile-editor.component';
 import { STOMACH_LABELS, StomachState } from './models/models';
@@ -13,7 +13,7 @@ import { STOMACH_LABELS, StomachState } from './models/models';
   imports: [
     BacStatusComponent,
     BacChartComponent,
-    AddDrinkComponent,
+    AddDrinkModalComponent,
     DrinkHistoryComponent,
     ProfileEditorComponent,
   ],
@@ -21,36 +21,24 @@ import { STOMACH_LABELS, StomachState } from './models/models';
   template: `
     <main>
       <header>
-        <h1 class="title">B<span class="ampersand">·</span>A<span class="ampersand">·</span>C</h1>
+        <h1 class="title">B<span class="dot">·</span>A<span class="dot">·</span>C</h1>
         <p class="subtitle">a personal pour log</p>
       </header>
 
       @if (!storage.profile()) {
         <section class="card hero">
           <h2 class="section-title">First, your profile</h2>
-          <p class="muted intro">
-            Used to compute total body water (Watson) for accurate distribution.
-          </p>
+          <p class="muted intro">Used to compute total body water (Watson) for accurate distribution.</p>
           <app-profile-editor />
         </section>
       } @else {
+
         <section class="card status-card">
           <app-bac-status />
-        </section>
-
-        <section class="card chart-card">
-          <app-bac-chart />
-        </section>
-
-        <section class="card">
-          <div class="card-header">
-            <h2 class="section-title">Stomach</h2>
-            <span class="muted small">applies to new drinks</span>
-          </div>
-          <div class="stomach-pills">
+          <div class="stomach-strip">
             @for (s of stomachOptions; track s) {
               <button
-                class="pill"
+                class="s-chip"
                 [class.active]="storage.stomachState() === s"
                 (click)="setStomach(s)">
                 {{ stomachLabel(s) }}
@@ -59,9 +47,8 @@ import { STOMACH_LABELS, StomachState } from './models/models';
           </div>
         </section>
 
-        <section class="card">
-          <h2 class="section-title">Add a drink</h2>
-          <app-add-drink />
+        <section class="card chart-card">
+          <app-bac-chart />
         </section>
 
         <section class="card">
@@ -83,54 +70,97 @@ import { STOMACH_LABELS, StomachState } from './models/models';
             <app-profile-editor />
           }
         </section>
+
+        <!-- spacer so FAB doesn't overlap last card -->
+        <div class="fab-spacer"></div>
+
+        <!-- Floating action button -->
+        <button class="fab" (click)="modalOpen.set(true)" aria-label="Add drink">
+          <span class="fab-icon">+</span>
+        </button>
+
+        <!-- Add drink modal -->
+        <app-add-drink-modal
+          [open]="modalOpen()"
+          (close)="modalOpen.set(false)" />
       }
 
       <footer>
-        <p class="dim small">
-          Watson body water · first-order absorption · linear elimination at 0.015%/hr
-        </p>
+        <p class="dim small">Watson · first-order absorption · 0.015%/hr elimination</p>
       </footer>
     </main>
   `,
   styles: [`
     main {
-      max-width: 640px;
+      max-width: 480px;
       margin: 0 auto;
-      padding: 1.5rem 1rem 3rem;
+      padding: 0 0.75rem calc(2rem + env(safe-area-inset-bottom));
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.75rem;
+      padding-top: env(safe-area-inset-top, 0);
     }
+
     header {
       text-align: center;
-      padding: 1.5rem 0 1rem;
+      padding: 1rem 0 0.5rem;
     }
     .title {
       font-family: var(--font-display);
-      font-size: 2.6rem;
+      font-size: 2.2rem;
       font-weight: 500;
       color: var(--amber);
       letter-spacing: 0.04em;
     }
-    .ampersand {
+    .dot {
       color: var(--text-dim);
       font-weight: 400;
-      margin: 0 0.15em;
+      margin: 0 0.1em;
     }
     .subtitle {
       font-family: var(--font-display);
       font-style: italic;
       color: var(--text-muted);
-      font-size: 1rem;
-      margin-top: -0.2rem;
+      font-size: 0.92rem;
     }
-    .hero { padding: 1.5rem; }
+
+    .hero { padding: 1.25rem; }
     .intro {
-      font-size: 0.9rem;
-      margin: -0.3rem 0 1rem;
+      font-size: 0.88rem;
+      margin: -0.2rem 0 1rem;
       font-style: italic;
       font-family: var(--font-display);
     }
+
+    .status-card { padding: 1.25rem 1rem 0.75rem; }
+    .chart-card  { padding: 0.75rem 0.5rem 0.5rem; }
+
+    /* Stomach state strip inside status card */
+    .stomach-strip {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: 0.85rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+    .s-chip {
+      flex: 1;
+      padding: 0.4rem 0;
+      border-radius: 999px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-align: center;
+      transition: all 0.15s ease;
+      min-height: 36px;
+    }
+    .s-chip.active {
+      background: var(--amber-dim);
+      border-color: var(--amber);
+      color: var(--amber-bright);
+    }
+
     .card-header {
       display: flex;
       justify-content: space-between;
@@ -141,56 +171,52 @@ import { STOMACH_LABELS, StomachState } from './models/models';
     .collapsible { cursor: pointer; user-select: none; }
     .chev {
       color: var(--text-muted);
-      font-size: 1.4rem;
+      font-size: 1.3rem;
       font-family: var(--font-display);
       line-height: 1;
     }
-    .small { font-size: 0.78rem; }
 
-    .status-card { padding: 1.5rem 1.25rem; }
-    .chart-card { padding: 1rem 0.75rem 0.75rem; }
+    .fab-spacer { height: 72px; }
 
-    .stomach-pills {
-      display: flex;
-      gap: 0.4rem;
-      flex-wrap: wrap;
-    }
-    .pill {
-      padding: 0.5rem 0.9rem;
-      border-radius: 999px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 0.85rem;
-      transition: all 0.15s ease;
-    }
-    .pill:hover { color: var(--text); }
-    .pill.active {
+    /* Floating action button */
+    .fab {
+      position: fixed;
+      right: max(1.25rem, env(safe-area-inset-right, 1.25rem));
+      bottom: calc(1.5rem + env(safe-area-inset-bottom));
+      width: 60px; height: 60px;
+      border-radius: 50%;
       background: var(--amber);
       color: var(--bg);
-      border-color: var(--amber);
+      border: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    .fab:active { transform: scale(0.94); }
+    .fab-icon {
+      font-size: 2rem;
+      line-height: 1;
+      font-weight: 300;
+      margin-top: -1px;
     }
 
     footer {
       text-align: center;
-      margin-top: 1rem;
       padding: 0 0.5rem;
     }
+    .small { font-size: 0.72rem; }
   `],
 })
 export class AppComponent {
   storage = inject(StorageService);
 
+  modalOpen  = signal(false);
   historyOpen = signal(true);
   profileOpen = signal(false);
 
   stomachOptions: StomachState[] = ['empty', 'food', 'heavy'];
 
-  setStomach(s: StomachState): void {
-    this.storage.setStomachState(s);
-  }
-
-  stomachLabel(s: StomachState): string {
-    return STOMACH_LABELS[s];
-  }
+  setStomach(s: StomachState): void { this.storage.setStomachState(s); }
+  stomachLabel(s: StomachState): string { return STOMACH_LABELS[s]; }
 }
