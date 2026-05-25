@@ -19,66 +19,81 @@ export interface Drink {
   timestamp: string;
   /** Stomach state snapshotted when drink was logged */
   stomachState: StomachState;
-  /** Optional human-readable label (e.g. "IPA", "Negroni") */
+  /** Optional human-readable label */
   label?: string;
 }
 
-export interface DrinkPreset {
-  key: string;
-  name: string;
-  volumeMl: number;
+export interface StrengthPreset {
+  label: string;
   abv: number;
+  default?: boolean;
+}
+
+export interface VolumePreset {
+  label: string;
+  volumeCl: number;
+  default?: boolean;
 }
 
 export interface DrinkCategory {
   key: 'beer' | 'wine' | 'liquor';
   label: string;
   icon: string;
-  presets: DrinkPreset[];
+  strengthPresets: StrengthPreset[];
+  volumePresets: VolumePreset[];
 }
 
 export const DRINK_CATEGORIES: DrinkCategory[] = [
   {
     key: 'beer',
-    label: 'Beer',
+    label: 'Öl',
     icon: '🍺',
-    presets: [
-      { key: 'lager',      name: 'Lager',  volumeMl: 330, abv: 4.5 },
-      { key: 'pint',       name: 'Pint',   volumeMl: 568, abv: 5.0 },
-      { key: 'ipa',        name: 'IPA',    volumeMl: 330, abv: 6.5 },
-      { key: 'strong',     name: 'Strong', volumeMl: 500, abv: 7.5 },
+    strengthPresets: [
+      { label: '2,8% Folköl', abv: 2.8 },
+      { label: '3,5% Folköl', abv: 3.5, default: true },
+      { label: '5,2% Starköl', abv: 5.2 },
+    ],
+    volumePresets: [
+      { label: '33 cl', volumeCl: 33 },
+      { label: '50 cl', volumeCl: 50, default: true },
     ],
   },
   {
     key: 'wine',
-    label: 'Wine',
+    label: 'Vin',
     icon: '🍷',
-    presets: [
-      { key: 'white',      name: 'White',  volumeMl: 150, abv: 12.0 },
-      { key: 'red',        name: 'Red',    volumeMl: 150, abv: 13.5 },
-      { key: 'rose',       name: 'Rosé',   volumeMl: 150, abv: 12.0 },
-      { key: 'wine-large', name: 'Large',  volumeMl: 250, abv: 13.0 },
+    strengthPresets: [
+      { label: '12%', abv: 12 },
+      { label: '13%', abv: 13, default: true },
+      { label: '14%', abv: 14 },
+    ],
+    volumePresets: [
+      { label: '15 cl', volumeCl: 15 },
+      { label: '20 cl', volumeCl: 20, default: true },
+      { label: '25 cl', volumeCl: 25 },
     ],
   },
   {
     key: 'liquor',
-    label: 'Liquor',
+    label: 'Sprit',
     icon: '🥃',
-    presets: [
-      { key: 'shot',       name: 'Shot',      volumeMl: 25,  abv: 40.0 },
-      { key: 'double',     name: 'Double',    volumeMl: 50,  abv: 40.0 },
-      { key: 'cocktail',   name: 'Cocktail',  volumeMl: 100, abv: 20.0 },
-      { key: 'long-drink', name: 'Long drink',volumeMl: 300, abv: 8.0  },
+    strengthPresets: [
+      { label: '37,5%', abv: 37.5, default: true },
+      { label: '40%', abv: 40 },
+    ],
+    volumePresets: [
+      { label: '3 cl', volumeCl: 3 },
+      { label: '4 cl', volumeCl: 4 },
+      { label: '5 cl', volumeCl: 5 },
+      { label: '6 cl', volumeCl: 6 },
     ],
   },
 ];
 
-export const DRINK_PRESETS: DrinkPreset[] = DRINK_CATEGORIES.flatMap(c => c.presets);
-
 export const STOMACH_LABELS: Record<StomachState, string> = {
-  empty: 'Empty stomach',
-  food: 'Some food',
-  heavy: 'Heavy meal',
+  empty: 'Tom mage',
+  food: 'Lite mat',
+  heavy: 'Stor måltid',
 };
 
 /** Absorption rate constants per hour (first-order) */

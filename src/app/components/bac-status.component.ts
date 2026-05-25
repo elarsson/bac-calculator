@@ -9,13 +9,13 @@ import { currentSessionDrinks } from '../services/session.util';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!storage.profile()) {
-      <div class="empty">Set up your profile to begin.</div>
+      <div class="empty">Ange din profil för att börja.</div>
     } @else if (sessionDrinks().length === 0) {
-      <div class="empty">No drinks logged. Add one below.</div>
+      <div class="empty">Inga drycker loggade. Lägg till en nedan.</div>
     } @else {
       <div class="grid">
         <div class="reading primary">
-          <div class="label">Estimated BAC</div>
+          <div class="label">Beräknad BAK</div>
           <div class="value mono" [class]="'tier-' + tier()">
             {{ curve().currentBac.toFixed(3) }}<span class="unit">%</span>
           </div>
@@ -23,7 +23,7 @@ import { currentSessionDrinks } from '../services/session.util';
         </div>
 
         <div class="reading">
-          <div class="label">Sober at</div>
+          <div class="label">Nykter klockan</div>
           <div class="value mono">
             @if (curve().soberAt) {
               {{ formatSober(curve().soberAt!) }}
@@ -33,20 +33,20 @@ import { currentSessionDrinks } from '../services/session.util';
           </div>
           <div class="sub mono">
             @if (curve().soberAt) {
-              {{ formatDuration(curve().soberAt! - now()) }} from now
+              {{ formatDuration(curve().soberAt! - now()) }} kvar
             }
           </div>
         </div>
 
         <div class="reading">
-          <div class="label">Peak</div>
+          <div class="label">Topp</div>
           <div class="value mono">{{ curve().peakBac.toFixed(3) }}<span class="unit">%</span></div>
           <div class="sub mono">
             @if (curve().peakAt) {
               @if (curve().peakAt! < now()) {
-                at {{ formatClock(curve().peakAt!) }}
+                kl. {{ formatClock(curve().peakAt!) }}
               } @else {
-                projected {{ formatClock(curve().peakAt!) }}
+                beräknad {{ formatClock(curve().peakAt!) }}
               }
             }
           </div>
@@ -133,11 +133,11 @@ export class BacStatusComponent implements OnInit, OnDestroy {
 
   tierLabel = computed(() => {
     switch (this.tier()) {
-      case 'clear': return 'sober';
+      case 'clear': return 'nykter';
       case 'low': return 'mild';
-      case 'mid': return 'moderate';
-      case 'high': return 'strong';
-      case 'extreme': return 'very high';
+      case 'mid': return 'måttlig';
+      case 'high': return 'hög';
+      case 'extreme': return 'mycket hög';
     }
     return '';
   });
@@ -165,7 +165,7 @@ export class BacStatusComponent implements OnInit, OnDestroy {
       d.getFullYear() === tomorrow.getFullYear() &&
       d.getMonth() === tomorrow.getMonth() &&
       d.getDate() === tomorrow.getDate();
-    if (isTomorrow) return `${time} tomorrow`;
+    if (isTomorrow) return `${time} imorgon`;
     return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
   }
 

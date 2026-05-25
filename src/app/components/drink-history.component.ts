@@ -16,32 +16,32 @@ function toLocalInputValue(d: Date): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (sessions().length === 0) {
-      <p class="empty">No drinks yet.</p>
+      <p class="empty">Inga drycker ännu.</p>
     } @else {
       @for (s of sessions(); track s.id; let first = $first) {
         <div class="session" [class.current]="first">
           <div class="session-header">
             <span class="session-label">
               @if (first) {
-                <em>Current session</em>
+                <em>Nuvarande session</em>
               } @else {
                 {{ formatSessionDate(s) }}
               }
             </span>
-            <span class="session-meta mono">{{ s.drinks.length }} drink{{ s.drinks.length === 1 ? '' : 's' }}</span>
+            <span class="session-meta mono">{{ s.drinks.length }} dryck{{ s.drinks.length === 1 ? '' : 'er' }}</span>
           </div>
 
           @for (d of s.drinks.slice().reverse(); track d.id) {
             <div class="row">
               @if (editingId() === d.id) {
                 <form [formGroup]="editForm" (ngSubmit)="saveEdit(d.id)" class="edit-row">
-                  <input type="number" formControlName="volumeMl" min="1" step="1" placeholder="ml" />
+                  <input type="number" formControlName="volumeCl" min="0.1" step="0.1" placeholder="cl" />
                   <input type="number" formControlName="abv" min="0.1" max="96" step="0.1" placeholder="%" />
                   <input type="datetime-local" formControlName="timestamp" />
                   <input type="text" formControlName="label" placeholder="label" />
                   <div class="edit-actions">
-                    <button class="btn btn-primary" type="submit">Save</button>
-                    <button class="btn btn-ghost" type="button" (click)="cancelEdit()">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Spara</button>
+                    <button class="btn btn-ghost" type="button" (click)="cancelEdit()">Avbryt</button>
                   </div>
                 </form>
               } @else {
@@ -54,11 +54,11 @@ function toLocalInputValue(d: Date): string {
                       }
                     </div>
                     <div class="row-meta mono">
-                      {{ d.volumeMl }}ml · {{ d.abv }}% · {{ stomachLabel(d.stomachState) }}
+                      {{ formatVolumeCl(d.volumeMl) }} · {{ d.abv }}% · {{ stomachLabel(d.stomachState) }}
                     </div>
                   </div>
                   <div class="row-actions">
-                    <button class="btn btn-ghost" (click)="startEdit(d)">Edit</button>
+                    <button class="btn btn-ghost" (click)="startEdit(d)">Redigera</button>
                     <button class="btn btn-ghost danger" (click)="remove(d.id)">×</button>
                   </div>
                 </div>
@@ -70,7 +70,7 @@ function toLocalInputValue(d: Date): string {
 
       <div class="footer">
         <button class="btn btn-secondary" (click)="confirmClear()">
-          @if (confirmingClear()) { Tap again to confirm } @else { Clear all history }
+          @if (confirmingClear()) { Tryck igen för att bekräfta } @else { Rensa all historik }
         </button>
       </div>
     }
@@ -169,7 +169,7 @@ export class DrinkHistoryComponent {
   private clearTimeout?: ReturnType<typeof setTimeout>;
 
   editForm = this.fb.nonNullable.group({
-    volumeMl: [330, [Validators.required, Validators.min(1)]],
+    volumeCl: [33, [Validators.required, Validators.min(0.1)]],
     abv: [5.0, [Validators.required, Validators.min(0.1), Validators.max(96)]],
     timestamp: ['', Validators.required],
     label: [''],
@@ -181,7 +181,7 @@ export class DrinkHistoryComponent {
 
   startEdit(d: Drink): void {
     this.editForm.patchValue({
-      volumeMl: d.volumeMl,
+      volumeCl: d.volumeMl / 10,
       abv: d.abv,
       timestamp: toLocalInputValue(new Date(d.timestamp)),
       label: d.label ?? '',
@@ -197,7 +197,7 @@ export class DrinkHistoryComponent {
     if (this.editForm.invalid) return;
     const v = this.editForm.getRawValue();
     this.storage.updateDrink(id, {
-      volumeMl: v.volumeMl,
+      volumeMl: v.volumeCl * 10,
       abv: v.abv,
       timestamp: new Date(v.timestamp).toISOString(),
       label: v.label || undefined,
@@ -218,6 +218,11 @@ export class DrinkHistoryComponent {
     if (this.clearTimeout) clearTimeout(this.clearTimeout);
     this.storage.clearDrinks();
     this.confirmingClear.set(false);
+  }
+
+  formatVolumeCl(ml: number): string {
+    const cl = ml / 10;
+    return Number.isInteger(cl) ? `${cl} cl` : `${cl.toFixed(1)} cl`;
   }
 
   formatTime(iso: string): string {

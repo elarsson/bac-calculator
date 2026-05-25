@@ -22,13 +22,13 @@ import { STOMACH_LABELS, StomachState } from './models/models';
     <main>
       <header>
         <h1 class="title">B<span class="dot">·</span>A<span class="dot">·</span>C</h1>
-        <p class="subtitle">a personal pour log</p>
+        <p class="subtitle">din personliga drinklogg</p>
       </header>
 
       @if (!storage.profile()) {
         <section class="card hero">
-          <h2 class="section-title">First, your profile</h2>
-          <p class="muted intro">Used to compute total body water (Watson) for accurate distribution.</p>
+          <h2 class="section-title">Sätt upp din profil</h2>
+          <p class="muted intro">Används för att beräkna total kroppsvätska (Watson) för korrekt fördelning.</p>
           <app-profile-editor />
         </section>
       } @else {
@@ -53,7 +53,7 @@ import { STOMACH_LABELS, StomachState } from './models/models';
 
         <section class="card">
           <div class="card-header collapsible" (click)="historyOpen.set(!historyOpen())">
-            <h2 class="section-title">History</h2>
+            <h2 class="section-title">Historik</h2>
             <span class="chev">{{ historyOpen() ? '–' : '+' }}</span>
           </div>
           @if (historyOpen()) {
@@ -63,7 +63,7 @@ import { STOMACH_LABELS, StomachState } from './models/models';
 
         <section class="card">
           <div class="card-header collapsible" (click)="profileOpen.set(!profileOpen())">
-            <h2 class="section-title">Profile</h2>
+            <h2 class="section-title">Profil</h2>
             <span class="chev">{{ profileOpen() ? '–' : '+' }}</span>
           </div>
           @if (profileOpen()) {
@@ -86,7 +86,7 @@ import { STOMACH_LABELS, StomachState } from './models/models';
       }
 
       <footer>
-        <p class="dim small">Watson · first-order absorption · 0.015%/hr elimination</p>
+        <p class="dim small">Watson · absorption av första ordningen · 0,015%/tim eliminering</p>
       </footer>
     </main>
   `,

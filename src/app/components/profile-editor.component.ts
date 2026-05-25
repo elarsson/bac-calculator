@@ -12,31 +12,31 @@ import { Profile } from '../models/models';
   template: `
     <form [formGroup]="form" (ngSubmit)="save()" class="grid">
       <div class="field">
-        <label for="sex">Sex</label>
+        <label for="sex">Kön</label>
         <select id="sex" formControlName="sex">
-          <option value="male">Male</option>
-          <option value="female">Female</option>
+          <option value="male">Man</option>
+          <option value="female">Kvinna</option>
         </select>
       </div>
 
       <div class="field">
-        <label for="age">Age</label>
+        <label for="age">Ålder</label>
         <input id="age" type="number" formControlName="age" min="14" max="120" />
       </div>
 
       <div class="field">
-        <label for="height">Height (cm)</label>
+        <label for="height">Längd (cm)</label>
         <input id="height" type="number" formControlName="heightCm" min="120" max="230" step="0.5" />
       </div>
 
       <div class="field">
-        <label for="weight">Weight (kg)</label>
+        <label for="weight">Vikt (kg)</label>
         <input id="weight" type="number" formControlName="weightKg" min="35" max="250" step="0.5" />
       </div>
 
       <div class="actions">
         <button class="btn btn-primary" type="submit" [disabled]="form.invalid">
-          Save profile
+          Spara profil
         </button>
         @if (currentR(); as r) {
           <span class="meta">Widmark r &nbsp;<span class="mono">{{ r.toFixed(3) }}</span></span>

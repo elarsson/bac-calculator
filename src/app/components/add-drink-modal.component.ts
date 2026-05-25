@@ -6,7 +6,7 @@ import { StorageService } from '../services/storage.service';
 import { BacService } from '../services/bac.service';
 import { currentSessionDrinks } from '../services/session.util';
 import {
-  DRINK_CATEGORIES, DrinkCategory, DrinkPreset, Drink, STOMACH_LABELS, StomachState,
+  DRINK_CATEGORIES, DrinkCategory, Drink, STOMACH_LABELS, StomachState,
 } from '../models/models';
 
 function toLocal(d: Date): string {
@@ -26,11 +26,11 @@ function toLocal(d: Date): string {
       <div class="handle"></div>
 
       <div class="sheet-header">
-        <h2 class="sheet-title">Add a drink</h2>
+        <h2 class="sheet-title">Lägg till dryck</h2>
         <button class="close-btn" type="button" (click)="close.emit()">✕</button>
       </div>
 
-      <!-- Stomach state -->
+      <!-- Magläge -->
       <div class="stomach-row">
         @for (s of stomachOptions; track s) {
           <button
@@ -42,43 +42,61 @@ function toLocal(d: Date): string {
         }
       </div>
 
-      <!-- Category tabs -->
+      <!-- Kategoritabbar -->
       <div class="cat-tabs">
         @for (cat of categories; track cat.key) {
           <button
             class="cat-tab"
             [class.active]="activeCat() === cat.key"
-            (click)="activeCat.set(cat.key)">
+            (click)="selectCategory(cat.key)">
             <span class="cat-icon">{{ cat.icon }}</span>
             <span class="cat-label">{{ cat.label }}</span>
           </button>
         }
       </div>
 
-      <!-- Preset grid -->
-      <div class="presets">
-        @for (p of currentPresets(); track p.key) {
-          <button
-            class="preset"
-            [class.selected]="selectedPreset() === p.key"
-            type="button"
-            (click)="applyPreset(p)">
-            <span class="preset-name">{{ p.name }}</span>
-            <span class="preset-meta mono">{{ p.volumeMl }}ml · {{ p.abv }}%</span>
-          </button>
-        }
+      <!-- Styrka -->
+      <div class="preset-group">
+        <div class="preset-group-label">Styrka</div>
+        <div class="preset-chips">
+          @for (s of currentStrengthPresets(); track s.abv) {
+            <button
+              class="preset-chip"
+              [class.active]="isStrengthActive(s.abv)"
+              type="button"
+              (click)="selectStrength(s.abv)">
+              {{ s.label }}
+            </button>
+          }
+        </div>
       </div>
 
-      <!-- Form -->
+      <!-- Volym -->
+      <div class="preset-group">
+        <div class="preset-group-label">Volym</div>
+        <div class="preset-chips">
+          @for (v of currentVolumePresets(); track v.volumeCl) {
+            <button
+              class="preset-chip"
+              [class.active]="isVolumeActive(v.volumeCl)"
+              type="button"
+              (click)="selectVolume(v.volumeCl)">
+              {{ v.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Formulär -->
       <form [formGroup]="form" (ngSubmit)="add()" class="form">
         <div class="form-row">
           <div class="field">
-            <label for="m-vol">Volume (ml)</label>
-            <input id="m-vol" type="number" formControlName="volumeMl"
-                   min="1" step="1" inputmode="decimal" />
+            <label for="m-vol">Volym (cl)</label>
+            <input id="m-vol" type="number" formControlName="volumeCl"
+                   min="0.1" step="0.1" inputmode="decimal" />
           </div>
           <div class="field">
-            <label for="m-abv">ABV (%)</label>
+            <label for="m-abv">Alkohol (%)</label>
             <input id="m-abv" type="number" formControlName="abv"
                    min="0.1" max="96" step="0.1" inputmode="decimal" />
           </div>
@@ -86,27 +104,27 @@ function toLocal(d: Date): string {
 
         <div class="form-row">
           <div class="field field-wide">
-            <label for="m-when">When</label>
+            <label for="m-when">När</label>
             <input id="m-when" type="datetime-local" formControlName="timestamp" />
           </div>
-          <button class="btn btn-ghost now-btn" type="button" (click)="setNow()">now</button>
+          <button class="btn btn-ghost now-btn" type="button" (click)="setNow()">nu</button>
         </div>
 
         <div class="field">
-          <label for="m-label">Label (optional)</label>
+          <label for="m-label">Namn (valfritt)</label>
           <input id="m-label" type="text" formControlName="label"
-                 placeholder="e.g. Negroni, IPA" autocomplete="off" />
+                 placeholder="t.ex. IPA, Negroni" autocomplete="off" />
         </div>
 
         @if (previewSober(); as s) {
           <div class="preview">
-            <span class="preview-label">Sober at</span>
+            <span class="preview-label">Nykter klockan</span>
             <span class="preview-value mono">{{ s }}</span>
           </div>
         }
 
         <button class="btn btn-primary add-btn" type="submit" [disabled]="form.invalid">
-          Add drink
+          Lägg till
         </button>
       </form>
     </div>
@@ -199,7 +217,7 @@ function toLocal(d: Date): string {
     .cat-tabs {
       display: flex;
       gap: 0.5rem;
-      margin-bottom: 0.75rem;
+      margin-bottom: 1rem;
     }
     .cat-tab {
       flex: 1;
@@ -227,36 +245,36 @@ function toLocal(d: Date): string {
     }
     .cat-tab.active .cat-label { color: var(--amber); }
 
-    .presets {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.5rem;
-      margin-bottom: 1rem;
+    .preset-group {
+      margin-bottom: 0.85rem;
     }
-    .preset {
+    .preset-group-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-bottom: 0.4rem;
+    }
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .preset-chip {
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
       background: var(--bg-card);
       border: 1.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 0.75rem;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.25rem;
-      transition: all 0.15s ease;
-      min-height: 60px;
-    }
-    .preset.selected {
-      border-color: var(--amber);
-      background: rgba(212, 151, 74, 0.08);
-    }
-    .preset-name {
-      font-size: 0.95rem;
-      color: var(--text);
-      font-weight: 500;
-    }
-    .preset-meta {
-      font-size: 0.72rem;
       color: var(--text-muted);
+      font-size: 0.82rem;
+      transition: all 0.15s ease;
+      min-height: 36px;
+      white-space: nowrap;
+    }
+    .preset-chip.active {
+      background: var(--amber-dim);
+      border-color: var(--amber);
+      color: var(--amber-bright);
     }
 
     .form {
@@ -325,15 +343,18 @@ export class AddDrinkModalComponent {
   protected categories: DrinkCategory[] = DRINK_CATEGORIES;
   protected stomachOptions: StomachState[] = ['empty', 'food', 'heavy'];
   protected activeCat = signal<'beer' | 'wine' | 'liquor'>('beer');
-  protected selectedPreset = signal<string | null>(null);
 
-  protected currentPresets = computed(() =>
-    this.categories.find(c => c.key === this.activeCat())?.presets ?? []
+  protected currentStrengthPresets = computed(() =>
+    this.categories.find(c => c.key === this.activeCat())?.strengthPresets ?? []
+  );
+
+  protected currentVolumePresets = computed(() =>
+    this.categories.find(c => c.key === this.activeCat())?.volumePresets ?? []
   );
 
   protected form = this.fb.nonNullable.group({
-    volumeMl:  [330,  [Validators.required, Validators.min(1)]],
-    abv:       [5.0,  [Validators.required, Validators.min(0.1), Validators.max(96)]],
+    volumeCl: [50,  [Validators.required, Validators.min(0.1)]],
+    abv:      [3.5, [Validators.required, Validators.min(0.1), Validators.max(96)]],
     timestamp: [toLocal(new Date()), Validators.required],
     label:     [''],
   });
@@ -348,10 +369,10 @@ export class AddDrinkModalComponent {
     const profile = this.storage.profile();
     if (!profile) return null;
     const v = this.formValue();
-    if (!v.volumeMl || !v.abv || !v.timestamp) return null;
+    if (!v.volumeCl || !v.abv || !v.timestamp) return null;
     const candidate: Drink = {
       id: '__preview__',
-      volumeMl: v.volumeMl,
+      volumeMl: v.volumeCl * 10,
       abv: v.abv,
       timestamp: new Date(v.timestamp).toISOString(),
       stomachState: this.storage.stomachState(),
@@ -363,9 +384,28 @@ export class AddDrinkModalComponent {
     return curve.soberAt ? this.fmt(curve.soberAt) : null;
   });
 
-  protected applyPreset(p: DrinkPreset): void {
-    this.selectedPreset.set(p.key);
-    this.form.patchValue({ volumeMl: p.volumeMl, abv: p.abv });
+  protected isStrengthActive(abv: number): boolean {
+    return Math.abs((this.formValue().abv ?? 0) - abv) < 0.01;
+  }
+
+  protected isVolumeActive(cl: number): boolean {
+    return Math.abs((this.formValue().volumeCl ?? 0) - cl) < 0.01;
+  }
+
+  protected selectCategory(key: 'beer' | 'wine' | 'liquor'): void {
+    this.activeCat.set(key);
+    const cat = this.categories.find(c => c.key === key)!;
+    const ds = cat.strengthPresets.find(s => s.default) ?? cat.strengthPresets[0];
+    const dv = cat.volumePresets.find(v => v.default) ?? cat.volumePresets[0];
+    this.form.patchValue({ abv: ds.abv, volumeCl: dv.volumeCl });
+  }
+
+  protected selectStrength(abv: number): void {
+    this.form.patchValue({ abv });
+  }
+
+  protected selectVolume(volumeCl: number): void {
+    this.form.patchValue({ volumeCl });
   }
 
   protected setNow(): void {
@@ -385,14 +425,16 @@ export class AddDrinkModalComponent {
     const v = this.form.getRawValue();
     this.storage.addDrink({
       id: crypto.randomUUID(),
-      volumeMl: v.volumeMl,
+      volumeMl: v.volumeCl * 10,
       abv: v.abv,
       timestamp: new Date(v.timestamp).toISOString(),
       stomachState: this.storage.stomachState(),
       label: v.label || undefined,
     });
-    this.form.patchValue({ timestamp: toLocal(new Date()), label: '' });
-    this.selectedPreset.set(null);
+    const cat = this.categories.find(c => c.key === this.activeCat())!;
+    const ds = cat.strengthPresets.find(s => s.default) ?? cat.strengthPresets[0];
+    const dv = cat.volumePresets.find(vp => vp.default) ?? cat.volumePresets[0];
+    this.form.patchValue({ timestamp: toLocal(new Date()), label: '', abv: ds.abv, volumeCl: dv.volumeCl });
     this.close.emit();
   }
 
@@ -403,7 +445,7 @@ export class AddDrinkModalComponent {
     if (d.toDateString() === now.toDateString()) return time;
     const tomorrow = new Date(now);
     tomorrow.setDate(now.getDate() + 1);
-    if (d.toDateString() === tomorrow.toDateString()) return `${time} tomorrow`;
+    if (d.toDateString() === tomorrow.toDateString()) return `${time} imorgon`;
     return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
   }
 }
