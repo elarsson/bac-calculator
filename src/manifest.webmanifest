@@ -1,6 +1,6 @@
 {
-  "name": "Fyllekompisen",
-  "short_name": "Fyllekompisen",
+  "name": "Suparkompisen",
+  "short_name": "Suparkompisen",
   "description": "Din personliga drinklogg — följ din promillehalt i realtid.",
   "start_url": "./",
   "display": "standalone",

@@ -21,7 +21,7 @@ import { STOMACH_LABELS, StomachState } from './models/models';
   template: `
     <main>
       <header>
-        <h1 class="title">Fyllekompisen</h1>
+        <h1 class="title">Suparkompisen</h1>
         <p class="subtitle">din personliga drinklogg</p>
       </header>
 

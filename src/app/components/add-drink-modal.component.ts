@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, computed, inject, input, output, signal,
+  ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { StorageService } from '../services/storage.service';
@@ -363,6 +363,29 @@ export class AddDrinkModalComponent {
 
   constructor() {
     this.form.valueChanges.subscribe(() => this.formValue.set(this.form.getRawValue()));
+    effect(() => {
+      if (this.open()) {
+        untracked(() => this.prefillFromLastDrink());
+      }
+    });
+  }
+
+  private prefillFromLastDrink(): void {
+    const drinks = this.storage.drinks();
+    this.form.patchValue({ timestamp: toLocal(new Date()), label: '' });
+    if (drinks.length === 0) return;
+    const last = [...drinks].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    )[0];
+    const cat = this.inferCategory(last.abv);
+    this.activeCat.set(cat);
+    this.form.patchValue({ abv: last.abv, volumeCl: last.volumeMl / 10 });
+  }
+
+  private inferCategory(abv: number): 'beer' | 'wine' | 'liquor' {
+    if (abv < 10) return 'beer';
+    if (abv < 25) return 'wine';
+    return 'liquor';
   }
 
   protected previewSober = computed(() => {
@@ -431,10 +454,6 @@ export class AddDrinkModalComponent {
       stomachState: this.storage.stomachState(),
       label: v.label || undefined,
     });
-    const cat = this.categories.find(c => c.key === this.activeCat())!;
-    const ds = cat.strengthPresets.find(s => s.default) ?? cat.strengthPresets[0];
-    const dv = cat.volumePresets.find(vp => vp.default) ?? cat.volumePresets[0];
-    this.form.patchValue({ timestamp: toLocal(new Date()), label: '', abv: ds.abv, volumeCl: dv.volumeCl });
     this.close.emit();
   }
 
