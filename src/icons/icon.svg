@@ -1,12 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#1a1410"/>
-  <text
-    x="256" y="330"
-    font-family="Georgia, 'Times New Roman', serif"
-    font-size="196"
-    font-weight="500"
-    fill="#d4974a"
-    text-anchor="middle"
-    letter-spacing="4"
-  >BAC</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BAC">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#221a14"/>
+      <stop offset="100%" stop-color="#15100c"/>
+    </linearGradient>
+    <linearGradient id="liquid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#e8b76a"/>
+      <stop offset="100%" stop-color="#b07730"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background (renders un-masked on iOS, masked on Android maskable) -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGrad)"/>
+
+  <!-- Whiskey tumbler, centred -->
+  <g transform="translate(256, 264)">
+    <!-- Glass outer outline -->
+    <path d="M -90 -132 L 90 -132 L 74 108 C 72 126 56 140 38 140 L -38 140 C -56 140 -72 126 -74 108 Z"
+          fill="#2a201a" stroke="#d4974a" stroke-width="16"
+          stroke-linejoin="round" stroke-linecap="round"/>
+    <!-- Amber liquid (lower 2/3) -->
+    <path d="M -84 -14 L 84 -14 L 74 108 C 72 126 56 140 38 140 L -38 140 C -56 140 -72 126 -74 108 Z"
+          fill="url(#liquid)"/>
+    <!-- Surface highlight line at liquid top -->
+    <line x1="-82" y1="-14" x2="82" y2="-14" stroke="#f0d490" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+    <!-- Soft highlight on the glass body -->
+    <line x1="-64" y1="-104" x2="-64" y2="-26" stroke="#e8b76a" stroke-width="4" stroke-linecap="round" opacity="0.55"/>
+  </g>
+
+  <!-- Promille mark at top -->
+  <text x="256" y="116"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="56"
+        font-weight="500"
+        font-style="italic"
+        fill="#d4974a"
+        text-anchor="middle"
+        opacity="0.9">‰</text>
 </svg>

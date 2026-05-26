@@ -1,7 +1,7 @@
 {
-  "name": "BAC — Promillekalkylator",
-  "short_name": "BAC",
-  "description": "Personlig promille-logg. Allt lokalt, inget delas.",
+  "name": "Suparkompisen",
+  "short_name": "Suparkompisen",
+  "description": "Din personliga drinklogg — följ din promillehalt i realtid, dela med gänget.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#1a1410",
