@@ -7,6 +7,7 @@ import { DrinkHistoryComponent } from './components/drink-history.component';
 import { ProfileEditorComponent } from './components/profile-editor.component';
 import { WskClaimModalComponent } from './components/wsk-claim-modal.component';
 import { WskChartComponent } from './components/wsk-chart.component';
+import { WskFeedComponent } from './components/wsk-feed.component';
 import { SharingMode, STOMACH_LABELS, StomachState } from './models/models';
 import { environment } from '../environments/environment';
 
@@ -21,6 +22,7 @@ import { environment } from '../environments/environment';
     ProfileEditorComponent,
     WskClaimModalComponent,
     WskChartComponent,
+    WskFeedComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -134,6 +136,11 @@ import { environment } from '../environments/environment';
 
         <section class="card chart-card">
           <app-wsk-chart />
+        </section>
+
+        <section class="card">
+          <h2 class="section-title">Flödet</h2>
+          <app-wsk-feed />
         </section>
 
         <section class="card identity-card">

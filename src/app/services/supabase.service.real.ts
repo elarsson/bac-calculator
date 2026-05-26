@@ -3,7 +3,7 @@ import {
   createClient, RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient,
 } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { BacCurvePayload } from '../models/models';
+import { BacCurvePayload, FeedDrink } from '../models/models';
 
 export interface ClaimResult {
   ok: boolean;
@@ -29,6 +29,35 @@ function rowToPayload(row: BacCurveRow): BacCurvePayload {
     firstSoberDrinkAt: row.first_sober_drink_at ? new Date(row.first_sober_drink_at).getTime() : null,
     updatedAt: new Date(row.updated_at).getTime(),
   };
+}
+
+interface DrinkRow {
+  id: string;
+  participant_name: string;
+  occurred_at: string;
+  label: string | null;
+  photo_url: string | null;
+}
+
+function drinkRowToFeed(row: DrinkRow): FeedDrink {
+  return {
+    id: row.id,
+    participantName: row.participant_name,
+    occurredAt: new Date(row.occurred_at).getTime(),
+    label: row.label ?? undefined,
+    photoUrl: row.photo_url ?? undefined,
+  };
+}
+
+const PHOTO_BUCKET = 'photos';
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [meta, b64] = dataUrl.split(',');
+  const mime = /data:([^;]+);base64/.exec(meta)?.[1] ?? 'image/jpeg';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
 }
 
 /**
@@ -172,5 +201,96 @@ export class SupabaseService {
     return () => {
       void client.removeChannel(channel);
     };
+  }
+
+  async upsertDrink(drink: FeedDrink): Promise<void> {
+    if (!this.client) return;
+    try {
+      await this.client.from('drinks').upsert({
+        id: drink.id,
+        participant_name: drink.participantName,
+        occurred_at: new Date(drink.occurredAt).toISOString(),
+        label: drink.label ?? null,
+        photo_url: drink.photoUrl ?? null,
+      });
+    } catch {
+      // swallow
+    }
+  }
+
+  async deleteDrink(id: string): Promise<void> {
+    if (!this.client) return;
+    try {
+      await this.client.from('drinks').delete().eq('id', id);
+    } catch {
+      // swallow
+    }
+  }
+
+  async fetchDrinks(sinceMs?: number): Promise<FeedDrink[]> {
+    if (!this.client) return [];
+    try {
+      let q = this.client.from('drinks').select('*').order('occurred_at', { ascending: false }).limit(200);
+      if (sinceMs) q = q.gte('occurred_at', new Date(sinceMs).toISOString());
+      const { data, error } = await q;
+      if (error || !data) return [];
+      return (data as DrinkRow[]).map(drinkRowToFeed);
+    } catch {
+      return [];
+    }
+  }
+
+  subscribeDrinks(onChange: (drinks: FeedDrink[]) => void): UnsubscribeFn {
+    if (!this.client) return () => undefined;
+    const client = this.client;
+    const state = new Map<string, FeedDrink>();
+    const emit = () => onChange(Array.from(state.values()).sort((a, b) => b.occurredAt - a.occurredAt));
+
+    void this.fetchDrinks().then(drinks => {
+      drinks.forEach(d => state.set(d.id, d));
+      emit();
+    });
+
+    const channel: RealtimeChannel = client
+      .channel('wsk-drinks')
+      .on<DrinkRow>(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'drinks' },
+        (msg: RealtimePostgresChangesPayload<DrinkRow>) => {
+          if (msg.eventType === 'DELETE') {
+            const id = (msg.old as Partial<DrinkRow> | null)?.id;
+            if (id) { state.delete(id); emit(); }
+            return;
+          }
+          const row = msg.new as DrinkRow | undefined;
+          if (row?.id) {
+            state.set(row.id, drinkRowToFeed(row));
+            emit();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => { void client.removeChannel(channel); };
+  }
+
+  /**
+   * Uploads a photo data URL to the `photos` bucket and returns the public URL.
+   * Returns undefined if the upload fails or the bucket is missing.
+   */
+  async uploadDrinkPhoto(drinkId: string, dataUrl: string): Promise<string | undefined> {
+    if (!this.client) return undefined;
+    try {
+      const blob = dataUrlToBlob(dataUrl);
+      const path = `${drinkId}.jpg`;
+      const { error } = await this.client.storage
+        .from(PHOTO_BUCKET)
+        .upload(path, blob, { contentType: blob.type, upsert: true });
+      if (error) return undefined;
+      const { data } = this.client.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+      return data.publicUrl;
+    } catch {
+      return undefined;
+    }
   }
 }

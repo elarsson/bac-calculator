@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BacCurvePayload } from '../models/models';
+import { BacCurvePayload, FeedDrink } from '../models/models';
 
 export interface ClaimResult {
   ok: boolean;
@@ -28,5 +28,16 @@ export class SupabaseService {
   async fetchCurves(): Promise<BacCurvePayload[]> { return []; }
   subscribeCurves(_onChange: (curves: BacCurvePayload[]) => void): UnsubscribeFn {
     return () => undefined;
+  }
+
+  async upsertDrink(_drink: FeedDrink): Promise<void> { /* no-op */ }
+  async deleteDrink(_id: string): Promise<void> { /* no-op */ }
+  async fetchDrinks(_sinceMs?: number): Promise<FeedDrink[]> { return []; }
+  subscribeDrinks(_onChange: (drinks: FeedDrink[]) => void): UnsubscribeFn {
+    return () => undefined;
+  }
+
+  async uploadDrinkPhoto(_drinkId: string, _dataUrl: string): Promise<string | undefined> {
+    return undefined;
   }
 }

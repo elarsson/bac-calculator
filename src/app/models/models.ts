@@ -11,6 +11,16 @@ export interface WskIdentity {
   avatarDataUrl?: string;
 }
 
+/** A drink event as broadcast in the WSK feed. */
+export interface FeedDrink {
+  id: string;
+  participantName: string;
+  occurredAt: number;
+  label?: string;
+  /** Public URL to the uploaded photo (Supabase Storage), if any. */
+  photoUrl?: string;
+}
+
 /** Lightweight payload uploaded per Festar tick. */
 export interface BacCurvePayload {
   participantName: string;

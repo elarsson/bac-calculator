@@ -1,6 +1,7 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
-import { BacCurvePayload, Drink } from '../models/models';
+import { BacCurvePayload, Drink, FeedDrink } from '../models/models';
 import { BacService } from './bac.service';
+import { PhotoStoreService } from './photo-store.service';
 import { StorageService } from './storage.service';
 import { SupabaseService, UnsubscribeFn } from './supabase.service';
 import { currentSessionDrinks, firstSoberDrinkAt } from './session.util';
@@ -36,18 +37,27 @@ export class WskSyncService {
   private storage = inject(StorageService);
   private bac = inject(BacService);
   private supabase = inject(SupabaseService);
+  private photoStore = inject(PhotoStoreService);
 
   /** All currently-shared curves, keyed in a flat array (incl. self). */
   readonly participants = signal<BacCurvePayload[]>([]);
+  /** All drinks broadcast to the group (newest first). */
+  readonly feed = signal<FeedDrink[]>([]);
 
   private uploadHandle?: ReturnType<typeof setInterval>;
   private unsubscribe?: UnsubscribeFn;
+  private unsubscribeFeed?: UnsubscribeFn;
+  /** Drink IDs we've already pushed (or detected) so we don't re-upload on every drinks() change. */
+  private uploadedDrinkIds = new Set<string>();
 
   constructor() {
-    // Realtime subscription stays open as long as Supabase is configured.
+    // Realtime subscriptions stay open as long as Supabase is configured.
     if (this.supabase.configured) {
       this.unsubscribe = this.supabase.subscribeCurves(curves =>
         this.participants.set(curves),
+      );
+      this.unsubscribeFeed = this.supabase.subscribeDrinks(drinks =>
+        this.feed.set(drinks),
       );
     }
 
@@ -61,8 +71,20 @@ export class WskSyncService {
         this.stopUploading();
         if (identity && this.supabase.configured) {
           void this.supabase.deleteCurve(identity.name);
+          this.deleteOwnDrinks(identity.name);
         }
       }
+    });
+
+    // Push new drinks to the feed whenever the local drinks list changes
+    // and we're currently in Festar mode.
+    effect(() => {
+      const drinks = this.storage.drinks();
+      const mode = this.storage.sharingMode();
+      const identity = this.storage.wskIdentity();
+      if (mode !== 'festar' || !identity || !this.supabase.configured) return;
+      const session = currentSessionDrinks(drinks);
+      session.forEach(d => this.uploadDrinkIfNeeded(d, identity.name));
     });
   }
 
@@ -109,8 +131,40 @@ export class WskSyncService {
   shutdown(): void {
     this.stopUploading();
     this.unsubscribe?.();
+    this.unsubscribeFeed?.();
   }
 
   /** Computed view: only participants who are currently sharing (everyone in the array). */
   readonly visibleParticipants = computed(() => this.participants());
+
+  private async uploadDrinkIfNeeded(drink: Drink, participantName: string): Promise<void> {
+    if (this.uploadedDrinkIds.has(drink.id)) return;
+    this.uploadedDrinkIds.add(drink.id);
+    let photoUrl: string | undefined;
+    if (drink.photoId) {
+      try {
+        const dataUrl = await this.photoStore.get(drink.photoId);
+        if (dataUrl) {
+          photoUrl = await this.supabase.uploadDrinkPhoto(drink.id, dataUrl);
+        }
+      } catch {
+        // ignore photo failure — still upload the drink
+      }
+    }
+    await this.supabase.upsertDrink({
+      id: drink.id,
+      participantName,
+      occurredAt: new Date(drink.timestamp).getTime(),
+      label: drink.label,
+      photoUrl,
+    });
+  }
+
+  private deleteOwnDrinks(participantName: string): void {
+    const own = this.feed().filter(d => d.participantName === participantName);
+    own.forEach(d => {
+      this.uploadedDrinkIds.delete(d.id);
+      void this.supabase.deleteDrink(d.id);
+    });
+  }
 }
