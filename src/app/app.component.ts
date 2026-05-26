@@ -7,6 +7,7 @@ import { DrinkHistoryComponent } from './components/drink-history.component';
 import { ProfileEditorComponent } from './components/profile-editor.component';
 import { WskClaimModalComponent } from './components/wsk-claim-modal.component';
 import { WskTabComponent } from './components/wsk-tab.component';
+import { InstallBannerComponent } from './components/install-banner.component';
 import { WskSyncService } from './services/wsk-sync.service';
 import { SharingMode, STOMACH_LABELS, StomachState } from './models/models';
 import { environment } from '../environments/environment';
@@ -22,6 +23,7 @@ import { environment } from '../environments/environment';
     ProfileEditorComponent,
     WskClaimModalComponent,
     WskTabComponent,
+    InstallBannerComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -35,6 +37,7 @@ import { environment } from '../environments/environment';
       </header>
 
       @if (social) {
+        <app-install-banner />
         <nav class="tabs" role="tablist" aria-label="Vyer">
           <button
             class="tab"
