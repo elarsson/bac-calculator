@@ -23,14 +23,25 @@ function downsample<T>(arr: T[], maxLen: number): T[] {
  * Drives realtime sync of the user's BAC curve to Supabase and
  * maintains a local mirror of every other participant's curve.
  *
+ * Privacy invariant (load-bearing — read before touching):
+ *   No drink/curve write hits the network unless sharingMode is
+ *   'festar' AND a wskIdentity exists AND Supabase is configured.
+ *   Every write path re-checks at the moment of the call, not just
+ *   at the moment the effect was scheduled, so async races on
+ *   toggle-off can't leak.
+ *
+ *   On Festar → Smygsuper the service does a server-side
+ *   wipeOwnContent: every drink row, every drink-photo blob, and
+ *   the curve row for this participant are deleted. The avatar +
+ *   participants row stay so reactions still attribute correctly
+ *   if the user posts later.
+ *
  * Lifecycle:
- *   - When sharingMode === 'festar' AND wskIdentity exists, the
- *     service computes the user's current curve from their drinks
- *     and uploads it every 30 s.
- *   - When sharingMode flips to 'smygsuper', the row is deleted from
- *     the server so other participants see the line disappear.
- *   - A single realtime subscription on bac_curves keeps the
- *     `participants` signal up-to-date for the WSK chart.
+ *   - Festar with identity → compute curve from drinks at-or-after
+ *     sharingStartedAt and upload every 30 s; push each new
+ *     in-scope drink as it is logged.
+ *   - Smygsuper → stop uploading, wipe everything on the server,
+ *     clear sharingStartedAt.
  */
 @Injectable({ providedIn: 'root' })
 export class WskSyncService {
@@ -87,9 +98,12 @@ export class WskSyncService {
       } else {
         this.stopUploading();
         if (identity && this.supabase.configured) {
-          void this.supabase.deleteCurve(identity.name);
-          this.deleteOwnDrinks(identity.name);
+          // Single server-side bulk delete; doesn't rely on the local
+          // feed mirror, so drinks uploaded just before toggle-off can't
+          // survive due to subscription lag.
+          void this.supabase.wipeOwnContent(identity.name);
         }
+        this.uploadedDrinkIds.clear();
         this.storage.setSharingStartedAt(null);
       }
     });
@@ -149,9 +163,14 @@ export class WskSyncService {
   }
 
   private uploadOnce(): void {
+    // Defensive: re-check the invariant at the moment we actually
+    // write. The setInterval callback could fire mid-toggle-off.
+    if (this.storage.sharingMode() !== 'festar') return;
+
     const identity = this.storage.wskIdentity();
     const profile = this.storage.profile();
     if (!identity || !profile) return;
+    if (!this.supabase.configured) return;
 
     const drinks = this.sharingDrinks();
     if (drinks.length === 0) {
@@ -221,18 +240,28 @@ export class WskSyncService {
 
   private async uploadDrinkIfNeeded(drink: Drink, participantName: string): Promise<void> {
     if (this.uploadedDrinkIds.has(drink.id)) return;
+    // Reserve the ID up front so a second tick doesn't double-upload.
     this.uploadedDrinkIds.add(drink.id);
+
+    // Defensive: re-check the invariant before each network write. If
+    // sharing toggled off between the effect firing and now, drop everything.
+    const stillSharing = () => this.storage.sharingMode() === 'festar';
+    if (!stillSharing()) { this.uploadedDrinkIds.delete(drink.id); return; }
+
     let photoUrl: string | undefined;
     if (drink.photoId) {
       try {
         const dataUrl = await this.photoStore.get(drink.photoId);
-        if (dataUrl) {
+        if (dataUrl && stillSharing()) {
           photoUrl = await this.supabase.uploadDrinkPhoto(drink.id, dataUrl);
         }
       } catch {
-        // ignore photo failure — still upload the drink
+        // ignore photo failure — still upload the drink if we're still sharing
       }
     }
+
+    if (!stillSharing()) { this.uploadedDrinkIds.delete(drink.id); return; }
+
     await this.supabase.upsertDrink({
       id: drink.id,
       participantName,
@@ -244,11 +273,4 @@ export class WskSyncService {
     });
   }
 
-  private deleteOwnDrinks(participantName: string): void {
-    const own = this.feed().filter(d => d.participantName === participantName);
-    own.forEach(d => {
-      this.uploadedDrinkIds.delete(d.id);
-      void this.supabase.deleteDrink(d.id);
-    });
-  }
 }

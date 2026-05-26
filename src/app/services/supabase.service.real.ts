@@ -268,6 +268,36 @@ export class SupabaseService {
     }
   }
 
+  /**
+   * Server-side cleanup of everything this participant has broadcast:
+   * the BAC curve row, every drink they've logged, and every drink-photo
+   * blob they uploaded to Storage. Avatar and participants row stay so
+   * they can rejoin without re-claiming.
+   *
+   * Called when the user toggles Smygsuper — we treat it as a hard
+   * privacy reset to remove anything that was uploaded under Festar.
+   */
+  async wipeOwnContent(participantName: string): Promise<void> {
+    if (!this.client) return;
+    try {
+      // 1) Find every drink so we know which photo blobs to remove.
+      const { data } = await this.client
+        .from('drinks')
+        .select('id')
+        .eq('participant_name', participantName);
+      const paths = (data ?? []).map(d => `${(d as { id: string }).id}.jpg`);
+      if (paths.length > 0) {
+        await this.client.storage.from(PHOTO_BUCKET).remove(paths);
+      }
+      // 2) Drop all drink rows for this participant.
+      await this.client.from('drinks').delete().eq('participant_name', participantName);
+      // 3) Drop the curve row.
+      await this.client.from('bac_curves').delete().eq('participant_name', participantName);
+    } catch {
+      // swallow — best-effort cleanup
+    }
+  }
+
   async fetchDrinks(sinceMs?: number): Promise<FeedDrink[]> {
     if (!this.client) return [];
     try {
