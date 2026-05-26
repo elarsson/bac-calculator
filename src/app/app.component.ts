@@ -165,7 +165,7 @@ import { environment } from '../environments/environment';
                 <span class="identity-label">Du är inte med än</span>
                 <span class="muted small">Ange ett namn för att reagera och dela din promille.</span>
               </div>
-              <button class="btn btn-primary" type="button" (click)="openClaim()">Bli med</button>
+              <button class="btn btn-primary" type="button" (click)="openClaim()">Gå med</button>
             </div>
           }
         </section>

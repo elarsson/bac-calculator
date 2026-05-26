@@ -40,8 +40,13 @@ create table if not exists public.drinks (
   occurred_at      timestamptz not null,
   label            text,
   photo_url        text,
+  volume_ml        numeric,
+  abv              numeric,
   created_at       timestamptz default now()
 );
+-- Idempotent column adds for tables that pre-existed this revision.
+alter table public.drinks add column if not exists volume_ml numeric;
+alter table public.drinks add column if not exists abv       numeric;
 create index if not exists drinks_participant_idx
   on public.drinks (participant_name, occurred_at desc);
 

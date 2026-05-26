@@ -3,10 +3,26 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WskSyncService } from '../services/wsk-sync.service';
-import { Reaction } from '../models/models';
+import { FeedDrink, Reaction } from '../models/models';
 import { DistortedAvatarComponent } from './distorted-avatar.component';
 
 const QUICK_EMOJIS = ['🍻', '🔥', '😂', '💀', '👏', '🥂'];
+
+function categoryFromAbv(abv: number): string {
+  if (abv < 10) return 'Öl';
+  if (abv < 25) return 'Vin';
+  return 'Sprit';
+}
+
+function fmtNum(n: number, frac: number): string {
+  return n.toLocaleString('sv-SE', { minimumFractionDigits: 0, maximumFractionDigits: frac });
+}
+
+function describeDrink(e: FeedDrink): string | null {
+  if (e.volumeMl == null || e.abv == null) return null;
+  const cat = categoryFromAbv(e.abv);
+  return `${cat} ${fmtNum(e.abv, 1)}%, ${fmtNum(e.volumeMl / 10, 1)} cl`;
+}
 
 @Component({
   selector: 'app-wsk-feed',
@@ -31,6 +47,9 @@ const QUICK_EMOJIS = ['🍻', '🔥', '😂', '💀', '👏', '🥂'];
                 <span class="when mono">{{ formatTime(e.occurredAt) }}</span>
               </div>
             </div>
+            @if (describe(e); as d) {
+              <div class="event-drink mono">{{ d }}</div>
+            }
             @if (e.label) {
               <div class="event-label">{{ e.label }}</div>
             }
@@ -130,6 +149,11 @@ const QUICK_EMOJIS = ['🍻', '🔥', '😂', '💀', '👏', '🥂'];
       line-height: 1.1;
     }
     .when { color: var(--text-dim); font-size: 0.78rem; }
+    .event-drink {
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      letter-spacing: 0.02em;
+    }
     .event-label {
       color: var(--text-muted);
       font-style: italic;
@@ -236,6 +260,7 @@ export class WskFeedComponent {
 
   protected avatarFor = (name: string): string | undefined => this.sync.avatarFor(name);
   protected promilleFor = (name: string): number => this.sync.promilleFor(name);
+  protected describe = (e: FeedDrink): string | null => describeDrink(e);
 
   protected emojisFor(drinkId: string): Reaction[] {
     return this.sync.reactions().filter(r => r.drinkId === drinkId && r.kind === 'emoji');

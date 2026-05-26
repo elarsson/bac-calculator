@@ -113,9 +113,9 @@ function toLocal(d: Date): string {
         </div>
 
         <div class="field">
-          <label for="m-label">Namn (valfritt)</label>
+          <label for="m-label">Kommentar (valfritt)</label>
           <input id="m-label" type="text" formControlName="label"
-                 placeholder="t.ex. IPA, Negroni" autocomplete="off" />
+                 placeholder="t.ex. snabb fredag" autocomplete="off" />
         </div>
 
         <div class="photo-row">

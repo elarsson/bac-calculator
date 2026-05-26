@@ -52,6 +52,8 @@ interface DrinkRow {
   occurred_at: string;
   label: string | null;
   photo_url: string | null;
+  volume_ml: number | null;
+  abv: number | null;
 }
 
 function drinkRowToFeed(row: DrinkRow): FeedDrink {
@@ -61,6 +63,8 @@ function drinkRowToFeed(row: DrinkRow): FeedDrink {
     occurredAt: new Date(row.occurred_at).getTime(),
     label: row.label ?? undefined,
     photoUrl: row.photo_url ?? undefined,
+    volumeMl: row.volume_ml ?? undefined,
+    abv: row.abv ?? undefined,
   };
 }
 
@@ -247,6 +251,8 @@ export class SupabaseService {
         occurred_at: new Date(drink.occurredAt).toISOString(),
         label: drink.label ?? null,
         photo_url: drink.photoUrl ?? null,
+        volume_ml: drink.volumeMl ?? null,
+        abv: drink.abv ?? null,
       });
     } catch {
       // swallow

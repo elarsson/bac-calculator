@@ -7,6 +7,7 @@ const K_STOMACH = 'bac.stomach';
 const K_MODE = 'bac.sharingMode';
 const K_IDENTITY = 'bac.wskIdentity';
 const K_DEVICE_ID = 'bac.deviceId';
+const K_SHARING_STARTED = 'bac.sharingStartedAt';
 
 function readOrCreateDeviceId(): string {
   try {
@@ -51,6 +52,9 @@ export class StorageService {
   readonly wskIdentity = signal<WskIdentity | null>(
     readJSON<WskIdentity>(K_IDENTITY)
   );
+  readonly sharingStartedAt = signal<number | null>(
+    readJSON<number>(K_SHARING_STARTED)
+  );
   readonly deviceId = readOrCreateDeviceId();
 
   constructor() {
@@ -59,6 +63,7 @@ export class StorageService {
     effect(() => writeJSON(K_STOMACH, this.stomachState()));
     effect(() => writeJSON(K_MODE, this.sharingMode()));
     effect(() => writeJSON(K_IDENTITY, this.wskIdentity()));
+    effect(() => writeJSON(K_SHARING_STARTED, this.sharingStartedAt()));
   }
 
   saveProfile(p: Profile): void {
@@ -101,5 +106,9 @@ export class StorageService {
 
   setWskIdentity(id: WskIdentity | null): void {
     this.wskIdentity.set(id);
+  }
+
+  setSharingStartedAt(t: number | null): void {
+    this.sharingStartedAt.set(t);
   }
 }

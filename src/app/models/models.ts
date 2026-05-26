@@ -27,7 +27,12 @@ export interface FeedDrink {
   id: string;
   participantName: string;
   occurredAt: number;
+  /** Free-text comment associated with the drink, if any. */
   label?: string;
+  /** Volume in ml — used to render the drink type line in the feed. */
+  volumeMl?: number;
+  /** ABV percent — used together with volumeMl to render the drink type line. */
+  abv?: number;
   /** Public URL to the uploaded photo (Supabase Storage), if any. */
   photoUrl?: string;
 }

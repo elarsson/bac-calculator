@@ -4,7 +4,7 @@ import { BacService } from './bac.service';
 import { PhotoStoreService } from './photo-store.service';
 import { StorageService } from './storage.service';
 import { ParticipantMeta, SupabaseService, UnsubscribeFn } from './supabase.service';
-import { currentSessionDrinks, firstSoberDrinkAt } from './session.util';
+import { firstSoberDrinkAt } from './session.util';
 
 const UPLOAD_INTERVAL_MS = 30_000;
 /** Max points to upload per curve to keep payload size sane. */
@@ -78,6 +78,11 @@ export class WskSyncService {
       const mode = this.storage.sharingMode();
       const identity = this.storage.wskIdentity();
       if (mode === 'festar' && identity && this.supabase.configured) {
+        // Lock in the sharing anchor the first time we enter Festar; reuse
+        // it across reloads so the scope rule is stable through the night.
+        if (this.storage.sharingStartedAt() === null) {
+          this.storage.setSharingStartedAt(this.computeSharingAnchor());
+        }
         this.startUploading();
       } else {
         this.stopUploading();
@@ -85,19 +90,46 @@ export class WskSyncService {
           void this.supabase.deleteCurve(identity.name);
           this.deleteOwnDrinks(identity.name);
         }
+        this.storage.setSharingStartedAt(null);
       }
     });
 
     // Push new drinks to the feed whenever the local drinks list changes
-    // and we're currently in Festar mode.
+    // and we're currently in Festar mode. Scope follows sharingStartedAt.
     effect(() => {
       const drinks = this.storage.drinks();
       const mode = this.storage.sharingMode();
       const identity = this.storage.wskIdentity();
-      if (mode !== 'festar' || !identity || !this.supabase.configured) return;
-      const session = currentSessionDrinks(drinks);
-      session.forEach(d => this.uploadDrinkIfNeeded(d, identity.name));
+      const start = this.storage.sharingStartedAt();
+      if (mode !== 'festar' || !identity || !this.supabase.configured || start === null) return;
+      drinks
+        .filter(d => new Date(d.timestamp).getTime() >= start)
+        .forEach(d => this.uploadDrinkIfNeeded(d, identity.name));
     });
+  }
+
+  /**
+   * Pick the anchor used to scope what gets shared:
+   *   - Sober at toggle time → 'now', so only future drinks broadcast.
+   *   - Already drinking → first drink of the current binge, so the curve
+   *     starts where the night actually began (per user spec).
+   */
+  private computeSharingAnchor(): number {
+    const now = Date.now();
+    const profile = this.storage.profile();
+    const drinks = this.storage.drinks();
+    if (!profile || drinks.length === 0) return now;
+    const curve = this.bac.computeCurve(drinks, profile, now);
+    if (curve.currentBac < 0.001) return now;
+    return firstSoberDrinkAt(drinks, this.bac, profile) ?? now;
+  }
+
+  /** Drinks in scope for the current sharing session. */
+  private sharingDrinks(): Drink[] {
+    const start = this.storage.sharingStartedAt();
+    const drinks = this.storage.drinks();
+    if (start === null) return [];
+    return drinks.filter(d => new Date(d.timestamp).getTime() >= start);
   }
 
   /** Force a single upload pass (used as a manual flush hook). */
@@ -121,12 +153,17 @@ export class WskSyncService {
     const profile = this.storage.profile();
     if (!identity || !profile) return;
 
-    const sessionDrinks = currentSessionDrinks(this.storage.drinks());
-    if (sessionDrinks.length === 0) return;
+    const drinks = this.sharingDrinks();
+    if (drinks.length === 0) {
+      // Nothing in scope yet (just toggled on while sober and no drinks since).
+      // Make sure no stale row hangs around.
+      void this.supabase.deleteCurve(identity.name);
+      return;
+    }
 
     const now = Date.now();
-    const curve = this.bac.computeCurve(sessionDrinks, profile, now);
-    const fsdAt = firstSoberDrinkAt(sessionDrinks as Drink[], this.bac, profile);
+    const curve = this.bac.computeCurve(drinks, profile, now);
+    const fsdAt = firstSoberDrinkAt(drinks, this.bac, profile);
 
     const points = curve.points.map(p => ({ t: p.t, bac: +p.bac.toFixed(4) }));
     const payload: BacCurvePayload = {
@@ -202,6 +239,8 @@ export class WskSyncService {
       occurredAt: new Date(drink.timestamp).getTime(),
       label: drink.label,
       photoUrl,
+      volumeMl: drink.volumeMl,
+      abv: drink.abv,
     });
   }
 
