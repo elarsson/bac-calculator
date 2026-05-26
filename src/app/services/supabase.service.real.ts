@@ -10,7 +10,22 @@ export interface ClaimResult {
   reason?: 'duplicate' | 'offline' | 'unknown';
 }
 
+export interface ParticipantMeta {
+  name: string;
+  avatarUrl?: string;
+}
+
 export type UnsubscribeFn = () => void;
+
+interface ParticipantRow {
+  name: string;
+  avatar_url: string | null;
+  device_id: string;
+}
+
+function participantRowToMeta(row: ParticipantRow): ParticipantMeta {
+  return { name: row.name, avatarUrl: row.avatar_url ?? undefined };
+}
 
 interface BacCurveRow {
   participant_name: string;
@@ -356,6 +371,73 @@ export class SupabaseService {
       .subscribe();
 
     return () => { void client.removeChannel(channel); };
+  }
+
+  async fetchParticipants(): Promise<ParticipantMeta[]> {
+    if (!this.client) return [];
+    try {
+      const { data, error } = await this.client.from('participants').select('name, avatar_url, device_id');
+      if (error || !data) return [];
+      return (data as ParticipantRow[]).map(participantRowToMeta);
+    } catch {
+      return [];
+    }
+  }
+
+  subscribeParticipants(onChange: (participants: ParticipantMeta[]) => void): UnsubscribeFn {
+    if (!this.client) return () => undefined;
+    const client = this.client;
+    const state = new Map<string, ParticipantMeta>();
+    const emit = () => onChange(Array.from(state.values()));
+
+    void this.fetchParticipants().then(ps => {
+      ps.forEach(p => state.set(p.name, p));
+      emit();
+    });
+
+    const channel: RealtimeChannel = client
+      .channel('wsk-participants')
+      .on<ParticipantRow>(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'participants' },
+        (msg: RealtimePostgresChangesPayload<ParticipantRow>) => {
+          if (msg.eventType === 'DELETE') {
+            const name = (msg.old as Partial<ParticipantRow> | null)?.name;
+            if (name) { state.delete(name); emit(); }
+            return;
+          }
+          const row = msg.new as ParticipantRow | undefined;
+          if (row?.name) {
+            state.set(row.name, participantRowToMeta(row));
+            emit();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => { void client.removeChannel(channel); };
+  }
+
+  /**
+   * Upload a square selfie data URL to the `photos` bucket under
+   * `avatars/<name>.jpg` and return the public URL. Falls back to
+   * undefined on failure.
+   */
+  async uploadParticipantAvatar(name: string, dataUrl: string): Promise<string | undefined> {
+    if (!this.client) return undefined;
+    try {
+      const blob = dataUrlToBlob(dataUrl);
+      const path = `avatars/${encodeURIComponent(name)}.jpg`;
+      const { error } = await this.client.storage
+        .from(PHOTO_BUCKET)
+        .upload(path, blob, { contentType: blob.type, upsert: true });
+      if (error) return undefined;
+      const { data } = this.client.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+      // bust caches when the user uploads a replacement
+      return `${data.publicUrl}?v=${Date.now()}`;
+    } catch {
+      return undefined;
+    }
   }
 
   /**

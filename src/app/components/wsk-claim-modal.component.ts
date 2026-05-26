@@ -258,8 +258,18 @@ export class WskClaimModalComponent {
     this.processing.set(true);
     this.errorMsg.set(null);
     try {
+      let avatarPublicUrl: string | undefined;
+      const localAvatar = this.avatarDataUrl();
+
       if (this.supabase.configured) {
-        const result = await this.supabase.claimName(name, this.storage.deviceId);
+        // Upload selfie to Storage first so other clients can fetch it.
+        if (localAvatar && localAvatar.startsWith('data:')) {
+          avatarPublicUrl = await this.supabase.uploadParticipantAvatar(name, localAvatar);
+        } else if (localAvatar && !localAvatar.startsWith('data:')) {
+          avatarPublicUrl = localAvatar;
+        }
+
+        const result = await this.supabase.claimName(name, this.storage.deviceId, avatarPublicUrl);
         if (!result.ok) {
           if (result.reason === 'duplicate') {
             this.errorMsg.set('Namnet är upptaget. Välj ett annat.');
@@ -271,9 +281,10 @@ export class WskClaimModalComponent {
           return;
         }
       }
+
       const identity: WskIdentity = {
         name,
-        avatarDataUrl: this.avatarDataUrl(),
+        avatarDataUrl: avatarPublicUrl ?? localAvatar,
       };
       this.storage.setWskIdentity(identity);
       this.saved.emit(identity);

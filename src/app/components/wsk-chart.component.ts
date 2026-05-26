@@ -4,6 +4,7 @@ import {
 import { BaseChartDirective } from 'ng2-charts';
 import type { ChartData, ChartOptions } from 'chart.js';
 import { WskSyncService } from '../services/wsk-sync.service';
+import { DistortedAvatarComponent } from './distorted-avatar.component';
 
 /** Stable colour palette, cycled by participant name hash. */
 const PALETTE = [
@@ -26,7 +27,7 @@ function colorFor(name: string): string {
 @Component({
   selector: 'app-wsk-chart',
   standalone: true,
-  imports: [BaseChartDirective],
+  imports: [BaseChartDirective, DistortedAvatarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (participants().length === 0) {
@@ -42,7 +43,12 @@ function colorFor(name: string): string {
       <ul class="legend">
         @for (p of participants(); track p.participantName) {
           <li>
-            <span class="swatch" [style.background]="colorFor(p.participantName)"></span>
+            <app-distorted-avatar
+              [src]="avatarFor(p.participantName)"
+              [name]="p.participantName"
+              [promille]="p.currentBac * 10"
+              [size]="36" />
+            <span class="line-color" [style.background]="colorFor(p.participantName)"></span>
             <span class="name">{{ p.participantName }}</span>
             <span class="bac mono">{{ (p.currentBac * 10).toFixed(2) }} ‰</span>
           </li>
@@ -68,30 +74,37 @@ function colorFor(name: string): string {
     }
     .legend {
       list-style: none;
-      padding: 0.5rem 0 0;
+      padding: 0.6rem 0 0;
       margin: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.3rem;
+      gap: 0.5rem;
     }
     .legend li {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.88rem;
+      gap: 0.55rem;
+      font-size: 0.92rem;
     }
-    .swatch {
-      width: 12px; height: 12px;
-      border-radius: 3px;
+    .line-color {
+      width: 14px; height: 3px;
+      border-radius: 2px;
       flex-shrink: 0;
     }
-    .name { color: var(--text); flex: 1; min-width: 0; }
+    .name {
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      font-family: var(--font-display);
+      font-style: italic;
+    }
     .bac { color: var(--text-muted); }
   `],
 })
 export class WskChartComponent implements OnInit, OnDestroy {
   private sync = inject(WskSyncService);
   protected colorFor = colorFor;
+  protected avatarFor = (name: string): string | undefined => this.sync.avatarFor(name);
 
   now = signal(Date.now());
   private tickHandle?: ReturnType<typeof setInterval>;

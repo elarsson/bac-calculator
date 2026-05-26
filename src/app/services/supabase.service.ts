@@ -6,6 +6,11 @@ export interface ClaimResult {
   reason?: 'duplicate' | 'offline' | 'unknown';
 }
 
+export interface ParticipantMeta {
+  name: string;
+  avatarUrl?: string;
+}
+
 export type UnsubscribeFn = () => void;
 
 /**
@@ -45,5 +50,13 @@ export class SupabaseService {
   async fetchReactions(): Promise<Reaction[]> { return []; }
   subscribeReactions(_onChange: (reactions: Reaction[]) => void): UnsubscribeFn {
     return () => undefined;
+  }
+
+  async fetchParticipants(): Promise<ParticipantMeta[]> { return []; }
+  subscribeParticipants(_onChange: (participants: ParticipantMeta[]) => void): UnsubscribeFn {
+    return () => undefined;
+  }
+  async uploadParticipantAvatar(_name: string, _dataUrl: string): Promise<string | undefined> {
+    return undefined;
   }
 }

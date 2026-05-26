@@ -4,13 +4,14 @@ import {
 import { FormsModule } from '@angular/forms';
 import { WskSyncService } from '../services/wsk-sync.service';
 import { Reaction } from '../models/models';
+import { DistortedAvatarComponent } from './distorted-avatar.component';
 
 const QUICK_EMOJIS = ['🍻', '🔥', '😂', '💀', '👏', '🥂'];
 
 @Component({
   selector: 'app-wsk-feed',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, DistortedAvatarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (feed().length === 0) {
@@ -20,8 +21,15 @@ const QUICK_EMOJIS = ['🍻', '🔥', '😂', '💀', '👏', '🥂'];
         @for (e of feed(); track e.id) {
           <li class="event">
             <div class="event-head">
-              <span class="who">{{ e.participantName }}</span>
-              <span class="when mono">{{ formatTime(e.occurredAt) }}</span>
+              <app-distorted-avatar
+                [src]="avatarFor(e.participantName)"
+                [name]="e.participantName"
+                [promille]="promilleFor(e.participantName)"
+                [size]="36" />
+              <div class="event-head-text">
+                <span class="who">{{ e.participantName }}</span>
+                <span class="when mono">{{ formatTime(e.occurredAt) }}</span>
+              </div>
             </div>
             @if (e.label) {
               <div class="event-label">{{ e.label }}</div>
@@ -40,6 +48,11 @@ const QUICK_EMOJIS = ['🍻', '🔥', '😂', '💀', '👏', '🥂'];
               </div>
               @for (t of textsFor(e.id); track t.id) {
                 <div class="reply">
+                  <app-distorted-avatar
+                    [src]="avatarFor(t.authorName)"
+                    [name]="t.authorName"
+                    [promille]="promilleFor(t.authorName)"
+                    [size]="22" />
                   <span class="reply-author">{{ t.authorName }}</span>
                   <span class="reply-text">{{ t.content }}</span>
                 </div>
@@ -99,14 +112,22 @@ const QUICK_EMOJIS = ['🍻', '🔥', '😂', '💀', '👏', '🥂'];
     }
     .event-head {
       display: flex;
-      justify-content: space-between;
-      align-items: baseline;
+      align-items: center;
+      gap: 0.55rem;
+    }
+    .event-head-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      flex: 1;
+      min-width: 0;
     }
     .who {
       font-family: var(--font-display);
       font-style: italic;
       color: var(--amber);
       font-size: 1rem;
+      line-height: 1.1;
     }
     .when { color: var(--text-dim); font-size: 0.78rem; }
     .event-label {
@@ -212,6 +233,9 @@ export class WskFeedComponent {
   protected replyOpen = signal<string | null>(null);
   protected replyText = '';
   protected readonly quickEmojis = QUICK_EMOJIS;
+
+  protected avatarFor = (name: string): string | undefined => this.sync.avatarFor(name);
+  protected promilleFor = (name: string): number => this.sync.promilleFor(name);
 
   protected emojisFor(drinkId: string): Reaction[] {
     return this.sync.reactions().filter(r => r.drinkId === drinkId && r.kind === 'emoji');

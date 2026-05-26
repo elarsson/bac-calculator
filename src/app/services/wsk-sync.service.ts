@@ -3,7 +3,7 @@ import { BacCurvePayload, Drink, FeedDrink, Reaction, ReactionKind } from '../mo
 import { BacService } from './bac.service';
 import { PhotoStoreService } from './photo-store.service';
 import { StorageService } from './storage.service';
-import { SupabaseService, UnsubscribeFn } from './supabase.service';
+import { ParticipantMeta, SupabaseService, UnsubscribeFn } from './supabase.service';
 import { currentSessionDrinks, firstSoberDrinkAt } from './session.util';
 
 const UPLOAD_INTERVAL_MS = 30_000;
@@ -45,11 +45,14 @@ export class WskSyncService {
   readonly feed = signal<FeedDrink[]>([]);
   /** All reactions across the group, oldest first. */
   readonly reactions = signal<Reaction[]>([]);
+  /** Participant directory keyed by name (avatars, etc.). */
+  readonly participantsDir = signal<ParticipantMeta[]>([]);
 
   private uploadHandle?: ReturnType<typeof setInterval>;
   private unsubscribe?: UnsubscribeFn;
   private unsubscribeFeed?: UnsubscribeFn;
   private unsubscribeReactions?: UnsubscribeFn;
+  private unsubscribeParticipants?: UnsubscribeFn;
   /** Drink IDs we've already pushed (or detected) so we don't re-upload on every drinks() change. */
   private uploadedDrinkIds = new Set<string>();
 
@@ -64,6 +67,9 @@ export class WskSyncService {
       );
       this.unsubscribeReactions = this.supabase.subscribeReactions(rs =>
         this.reactions.set(rs),
+      );
+      this.unsubscribeParticipants = this.supabase.subscribeParticipants(ps =>
+        this.participantsDir.set(ps),
       );
     }
 
@@ -139,6 +145,18 @@ export class WskSyncService {
     this.unsubscribe?.();
     this.unsubscribeFeed?.();
     this.unsubscribeReactions?.();
+    this.unsubscribeParticipants?.();
+  }
+
+  /** Current promille for a participant — used to drive avatar distortion. */
+  promilleFor(name: string): number {
+    const p = this.participants().find(x => x.participantName === name);
+    return p ? p.currentBac * 10 : 0;
+  }
+
+  /** Avatar URL for a participant (server-side public URL). */
+  avatarFor(name: string): string | undefined {
+    return this.participantsDir().find(p => p.name === name)?.avatarUrl;
   }
 
   /**
