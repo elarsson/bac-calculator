@@ -29,84 +29,110 @@ import { environment } from '../environments/environment';
         <p class="subtitle">din personliga drinklogg</p>
       </header>
 
-      @if (social && storage.profile()) {
-        <div class="mode-toggle" role="tablist" aria-label="Delningsläge">
-          @for (m of modeOptions; track m) {
-            <button
-              class="mode-pill"
-              role="tab"
-              [class.active]="storage.sharingMode() === m"
-              [attr.aria-selected]="storage.sharingMode() === m"
-              (click)="setMode(m)">
-              {{ modeLabel(m) }}
-            </button>
-          }
-        </div>
+      @if (social) {
+        <nav class="tabs" role="tablist" aria-label="Vyer">
+          <button
+            class="tab"
+            role="tab"
+            [class.active]="activeTab() === 'solo'"
+            [attr.aria-selected]="activeTab() === 'solo'"
+            (click)="setTab('solo')">Solo</button>
+          <button
+            class="tab"
+            role="tab"
+            [class.active]="activeTab() === 'wsk'"
+            [attr.aria-selected]="activeTab() === 'wsk'"
+            (click)="setTab('wsk')">WSK</button>
+        </nav>
       }
 
-      @if (!storage.profile()) {
-        <section class="card hero">
-          <h2 class="section-title">Sätt upp din profil</h2>
-          <p class="muted intro">Används för att beräkna total kroppsvätska (Watson) för korrekt fördelning.</p>
-          <app-profile-editor />
-        </section>
-      } @else {
+      @if (!social || activeTab() === 'solo') {
 
-        <section class="card status-card">
-          <app-bac-status />
-          <div class="stomach-strip">
-            @for (s of stomachOptions; track s) {
+        @if (social && storage.profile()) {
+          <div class="mode-toggle" role="tablist" aria-label="Delningsläge">
+            @for (m of modeOptions; track m) {
               <button
-                class="s-chip"
-                [class.active]="storage.stomachState() === s"
-                (click)="setStomach(s)">
-                {{ stomachLabel(s) }}
+                class="mode-pill"
+                role="tab"
+                [class.active]="storage.sharingMode() === m"
+                [attr.aria-selected]="storage.sharingMode() === m"
+                (click)="setMode(m)">
+                {{ modeLabel(m) }}
               </button>
             }
           </div>
-        </section>
+        }
 
-        <section class="card chart-card">
-          <app-bac-chart />
-        </section>
-
-        <section class="card">
-          <div class="card-header collapsible" (click)="historyOpen.set(!historyOpen())">
-            <h2 class="section-title">Historik</h2>
-            <span class="chev">{{ historyOpen() ? '–' : '+' }}</span>
-          </div>
-          @if (historyOpen()) {
-            <app-drink-history />
-          }
-        </section>
-
-        <section class="card">
-          <div class="card-header collapsible" (click)="profileOpen.set(!profileOpen())">
-            <h2 class="section-title">Profil</h2>
-            <span class="chev">{{ profileOpen() ? '–' : '+' }}</span>
-          </div>
-          @if (profileOpen()) {
+        @if (!storage.profile()) {
+          <section class="card hero">
+            <h2 class="section-title">Sätt upp din profil</h2>
+            <p class="muted intro">Används för att beräkna total kroppsvätska (Watson) för korrekt fördelning.</p>
             <app-profile-editor />
-          }
+          </section>
+        } @else {
+
+          <section class="card status-card">
+            <app-bac-status />
+            <div class="stomach-strip">
+              @for (s of stomachOptions; track s) {
+                <button
+                  class="s-chip"
+                  [class.active]="storage.stomachState() === s"
+                  (click)="setStomach(s)">
+                  {{ stomachLabel(s) }}
+                </button>
+              }
+            </div>
+          </section>
+
+          <section class="card chart-card">
+            <app-bac-chart />
+          </section>
+
+          <section class="card">
+            <div class="card-header collapsible" (click)="historyOpen.set(!historyOpen())">
+              <h2 class="section-title">Historik</h2>
+              <span class="chev">{{ historyOpen() ? '–' : '+' }}</span>
+            </div>
+            @if (historyOpen()) {
+              <app-drink-history />
+            }
+          </section>
+
+          <section class="card">
+            <div class="card-header collapsible" (click)="profileOpen.set(!profileOpen())">
+              <h2 class="section-title">Profil</h2>
+              <span class="chev">{{ profileOpen() ? '–' : '+' }}</span>
+            </div>
+            @if (profileOpen()) {
+              <app-profile-editor />
+            }
+          </section>
+
+          <!-- spacer so FAB doesn't overlap last card -->
+          <div class="fab-spacer"></div>
+
+          <!-- Floating action button -->
+          <button class="fab" (click)="modalOpen.set(true)" aria-label="Add drink">
+            <span class="fab-icon">+</span>
+          </button>
+
+          <!-- Add drink modal -->
+          <app-add-drink-modal
+            [open]="modalOpen()"
+            (close)="modalOpen.set(false)" />
+        }
+
+        <footer>
+          <p class="dim small">Watson · absorption av första ordningen · 0,15‰/tim eliminering</p>
+        </footer>
+      } @else {
+
+        <section class="card wsk-empty">
+          <h2 class="section-title">WSK</h2>
+          <p class="muted">Här kommer den delade grafen att visas — när någon i gänget börjar festa.</p>
         </section>
-
-        <!-- spacer so FAB doesn't overlap last card -->
-        <div class="fab-spacer"></div>
-
-        <!-- Floating action button -->
-        <button class="fab" (click)="modalOpen.set(true)" aria-label="Add drink">
-          <span class="fab-icon">+</span>
-        </button>
-
-        <!-- Add drink modal -->
-        <app-add-drink-modal
-          [open]="modalOpen()"
-          (close)="modalOpen.set(false)" />
       }
-
-      <footer>
-        <p class="dim small">Watson · absorption av första ordningen · 0,15‰/tim eliminering</p>
-      </footer>
     </main>
   `,
   styles: [`
@@ -146,6 +172,42 @@ import { environment } from '../environments/environment';
       color: var(--text-muted);
       font-size: 0.92rem;
     }
+
+    /* Solo / WSK tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin: 0 -0.25rem 0.25rem;
+    }
+    .tab {
+      flex: 1;
+      padding: 0.75rem 0.25rem 0.65rem;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 1.15rem;
+      letter-spacing: 0.02em;
+      position: relative;
+      transition: color 0.18s ease;
+      min-height: 44px;
+    }
+    .tab.active { color: var(--amber); }
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      left: 22%; right: 22%;
+      bottom: -1px;
+      height: 2px;
+      background: var(--amber);
+      border-radius: 2px;
+    }
+
+    .wsk-empty {
+      padding: 2rem 1.25rem;
+      text-align: center;
+    }
+    .wsk-empty .section-title { margin-bottom: 0.75rem; }
 
     /* Smygsuper / Festar toggle */
     .mode-toggle {
@@ -267,6 +329,7 @@ export class AppComponent {
   profileOpen = signal(false);
 
   readonly social = environment.social;
+  activeTab = signal<'solo' | 'wsk'>('solo');
   stomachOptions: StomachState[] = ['empty', 'food', 'heavy'];
   modeOptions: SharingMode[] = ['smygsuper', 'festar'];
 
@@ -286,4 +349,6 @@ export class AppComponent {
 
   setMode(m: SharingMode): void { this.storage.setSharingMode(m); }
   modeLabel(m: SharingMode): string { return m === 'smygsuper' ? 'Smygsuper' : 'Festar'; }
+
+  setTab(t: 'solo' | 'wsk'): void { this.activeTab.set(t); }
 }
