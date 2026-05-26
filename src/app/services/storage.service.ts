@@ -1,10 +1,11 @@
 import { Injectable, signal, effect } from '@angular/core';
-import { Drink, Profile, SharingMode, StomachState } from '../models/models';
+import { Drink, Profile, SharingMode, StomachState, WskIdentity } from '../models/models';
 
 const K_PROFILE = 'bac.profile';
 const K_DRINKS = 'bac.drinks';
 const K_STOMACH = 'bac.stomach';
 const K_MODE = 'bac.sharingMode';
+const K_IDENTITY = 'bac.wskIdentity';
 
 function readJSON<T>(key: string): T | null {
   try {
@@ -34,12 +35,16 @@ export class StorageService {
   readonly sharingMode = signal<SharingMode>(
     readJSON<SharingMode>(K_MODE) ?? 'smygsuper'
   );
+  readonly wskIdentity = signal<WskIdentity | null>(
+    readJSON<WskIdentity>(K_IDENTITY)
+  );
 
   constructor() {
     effect(() => writeJSON(K_PROFILE, this.profile()));
     effect(() => writeJSON(K_DRINKS, this.drinks()));
     effect(() => writeJSON(K_STOMACH, this.stomachState()));
     effect(() => writeJSON(K_MODE, this.sharingMode()));
+    effect(() => writeJSON(K_IDENTITY, this.wskIdentity()));
   }
 
   saveProfile(p: Profile): void {
@@ -78,5 +83,9 @@ export class StorageService {
 
   setSharingMode(m: SharingMode): void {
     this.sharingMode.set(m);
+  }
+
+  setWskIdentity(id: WskIdentity | null): void {
+    this.wskIdentity.set(id);
   }
 }

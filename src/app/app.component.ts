@@ -5,6 +5,7 @@ import { BacChartComponent } from './components/bac-chart.component';
 import { AddDrinkModalComponent } from './components/add-drink-modal.component';
 import { DrinkHistoryComponent } from './components/drink-history.component';
 import { ProfileEditorComponent } from './components/profile-editor.component';
+import { WskClaimModalComponent } from './components/wsk-claim-modal.component';
 import { SharingMode, STOMACH_LABELS, StomachState } from './models/models';
 import { environment } from '../environments/environment';
 
@@ -17,6 +18,7 @@ import { environment } from '../environments/environment';
     AddDrinkModalComponent,
     DrinkHistoryComponent,
     ProfileEditorComponent,
+    WskClaimModalComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -132,6 +134,40 @@ import { environment } from '../environments/environment';
           <h2 class="section-title">WSK</h2>
           <p class="muted">Här kommer den delade grafen att visas — när någon i gänget börjar festa.</p>
         </section>
+
+        <section class="card identity-card">
+          @if (storage.wskIdentity(); as id) {
+            <div class="identity-row">
+              <div class="avatar-circle" [class.empty]="!id.avatarDataUrl">
+                @if (id.avatarDataUrl) {
+                  <img [src]="id.avatarDataUrl" [alt]="id.name" />
+                } @else {
+                  <span class="mono dim">{{ id.name.charAt(0).toUpperCase() }}</span>
+                }
+              </div>
+              <div class="identity-info">
+                <span class="identity-label">Du i WSK</span>
+                <span class="identity-name">{{ id.name }}</span>
+              </div>
+              <button class="btn btn-ghost" type="button" (click)="openClaim()">Ändra</button>
+            </div>
+          } @else {
+            <div class="identity-row">
+              <div class="identity-info">
+                <span class="identity-label">Du är inte med än</span>
+                <span class="muted small">Ange ett namn för att reagera och dela din promille.</span>
+              </div>
+              <button class="btn btn-primary" type="button" (click)="openClaim()">Bli med</button>
+            </div>
+          }
+        </section>
+      }
+
+      @if (social) {
+        <app-wsk-claim-modal
+          [open]="claimOpen()"
+          (saved)="onClaimSaved()"
+          (cancelled)="onClaimCancelled()" />
       }
     </main>
   `,
@@ -208,6 +244,48 @@ import { environment } from '../environments/environment';
       text-align: center;
     }
     .wsk-empty .section-title { margin-bottom: 0.75rem; }
+
+    .identity-card { padding: 0.85rem 1rem; }
+    .identity-row {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .avatar-circle {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .avatar-circle.empty { font-size: 1rem; color: var(--text-muted); }
+    .avatar-circle img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .identity-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      flex: 1;
+      min-width: 0;
+    }
+    .identity-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+    .identity-name {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      color: var(--text);
+      font-style: italic;
+    }
+    .small { font-size: 0.8rem; }
 
     /* Smygsuper / Festar toggle */
     .mode-toggle {
@@ -327,6 +405,7 @@ export class AppComponent {
   modalOpen  = signal(false);
   historyOpen = signal(true);
   profileOpen = signal(false);
+  claimOpen   = signal(false);
 
   readonly social = environment.social;
   activeTab = signal<'solo' | 'wsk'>('solo');
@@ -347,8 +426,21 @@ export class AppComponent {
   setStomach(s: StomachState): void { this.storage.setStomachState(s); }
   stomachLabel(s: StomachState): string { return STOMACH_LABELS[s]; }
 
-  setMode(m: SharingMode): void { this.storage.setSharingMode(m); }
+  setMode(m: SharingMode): void {
+    if (m === 'festar' && !this.storage.wskIdentity()) {
+      this.claimOpen.set(true);
+      return;
+    }
+    this.storage.setSharingMode(m);
+  }
   modeLabel(m: SharingMode): string { return m === 'smygsuper' ? 'Smygsuper' : 'Festar'; }
 
   setTab(t: 'solo' | 'wsk'): void { this.activeTab.set(t); }
+
+  onClaimSaved(): void {
+    this.claimOpen.set(false);
+    this.storage.setSharingMode('festar');
+  }
+  onClaimCancelled(): void { this.claimOpen.set(false); }
+  openClaim(): void { this.claimOpen.set(true); }
 }

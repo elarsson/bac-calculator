@@ -4,6 +4,13 @@ export type StomachState = 'empty' | 'food' | 'heavy';
 
 export type SharingMode = 'smygsuper' | 'festar';
 
+export interface WskIdentity {
+  /** Display name claimed in the WSK group. Trimmed, max 24 chars. */
+  name: string;
+  /** Optional avatar as a JPEG data URL (~50 kB after resize). */
+  avatarDataUrl?: string;
+}
+
 export interface Profile {
   sex: Sex;
   age: number;
