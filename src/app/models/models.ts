@@ -11,6 +11,17 @@ export interface WskIdentity {
   avatarDataUrl?: string;
 }
 
+export type ReactionKind = 'emoji' | 'text';
+
+export interface Reaction {
+  id: string;
+  drinkId: string;
+  authorName: string;
+  kind: ReactionKind;
+  content: string;
+  createdAt: number;
+}
+
 /** A drink event as broadcast in the WSK feed. */
 export interface FeedDrink {
   id: string;

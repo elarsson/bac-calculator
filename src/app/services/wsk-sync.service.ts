@@ -1,5 +1,5 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
-import { BacCurvePayload, Drink, FeedDrink } from '../models/models';
+import { BacCurvePayload, Drink, FeedDrink, Reaction, ReactionKind } from '../models/models';
 import { BacService } from './bac.service';
 import { PhotoStoreService } from './photo-store.service';
 import { StorageService } from './storage.service';
@@ -43,10 +43,13 @@ export class WskSyncService {
   readonly participants = signal<BacCurvePayload[]>([]);
   /** All drinks broadcast to the group (newest first). */
   readonly feed = signal<FeedDrink[]>([]);
+  /** All reactions across the group, oldest first. */
+  readonly reactions = signal<Reaction[]>([]);
 
   private uploadHandle?: ReturnType<typeof setInterval>;
   private unsubscribe?: UnsubscribeFn;
   private unsubscribeFeed?: UnsubscribeFn;
+  private unsubscribeReactions?: UnsubscribeFn;
   /** Drink IDs we've already pushed (or detected) so we don't re-upload on every drinks() change. */
   private uploadedDrinkIds = new Set<string>();
 
@@ -58,6 +61,9 @@ export class WskSyncService {
       );
       this.unsubscribeFeed = this.supabase.subscribeDrinks(drinks =>
         this.feed.set(drinks),
+      );
+      this.unsubscribeReactions = this.supabase.subscribeReactions(rs =>
+        this.reactions.set(rs),
       );
     }
 
@@ -132,6 +138,27 @@ export class WskSyncService {
     this.stopUploading();
     this.unsubscribe?.();
     this.unsubscribeFeed?.();
+    this.unsubscribeReactions?.();
+  }
+
+  /**
+   * Post a reaction. Returns false if the user has not claimed a name
+   * yet (caller should prompt for one); true otherwise (even if the
+   * server insert failed — fire and forget).
+   */
+  postReaction(drinkId: string, kind: ReactionKind, content: string): boolean {
+    const identity = this.storage.wskIdentity();
+    if (!identity || !this.supabase.configured) return false;
+    const reaction: Reaction = {
+      id: crypto.randomUUID(),
+      drinkId,
+      authorName: identity.name,
+      kind,
+      content,
+      createdAt: Date.now(),
+    };
+    void this.supabase.addReaction(reaction);
+    return true;
   }
 
   /** Computed view: only participants who are currently sharing (everyone in the array). */

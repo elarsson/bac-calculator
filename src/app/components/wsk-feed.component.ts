@@ -1,11 +1,16 @@
 import {
-  ChangeDetectionStrategy, Component, computed, inject, signal,
+  ChangeDetectionStrategy, Component, computed, inject, output, signal,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { WskSyncService } from '../services/wsk-sync.service';
+import { Reaction } from '../models/models';
+
+const QUICK_EMOJIS = ['🍻', '🔥', '😂', '💀', '👏', '🥂'];
 
 @Component({
   selector: 'app-wsk-feed',
   standalone: true,
+  imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (feed().length === 0) {
@@ -25,6 +30,42 @@ import { WskSyncService } from '../services/wsk-sync.service';
               <img class="event-photo" [src]="src" alt="" loading="lazy"
                    (click)="enlarge.set(enlarge() === e.id ? null : e.id)"
                    [class.enlarged]="enlarge() === e.id" />
+            }
+
+            @if (groupedEmojis(e.id).length > 0 || textsFor(e.id).length > 0) {
+              <div class="reaction-summary">
+                @for (g of groupedEmojis(e.id); track g.emoji) {
+                  <span class="emoji-count">{{ g.emoji }} <span class="mono dim">{{ g.count }}</span></span>
+                }
+              </div>
+              @for (t of textsFor(e.id); track t.id) {
+                <div class="reply">
+                  <span class="reply-author">{{ t.authorName }}</span>
+                  <span class="reply-text">{{ t.content }}</span>
+                </div>
+              }
+            }
+
+            <div class="reaction-bar">
+              @for (em of quickEmojis; track em) {
+                <button class="emoji-btn" type="button" (click)="onEmoji(e.id, em)">{{ em }}</button>
+              }
+              <button class="emoji-btn plus" type="button" (click)="toggleReply(e.id)">
+                {{ replyOpen() === e.id ? '×' : '+' }}
+              </button>
+            </div>
+
+            @if (replyOpen() === e.id) {
+              <form class="reply-form" (ngSubmit)="onSendReply(e.id)">
+                <input
+                  type="text"
+                  [(ngModel)]="replyText"
+                  name="replyText"
+                  placeholder="Skriv ett svar…"
+                  maxlength="200"
+                  autocomplete="off" />
+                <button class="btn btn-primary" type="submit" [disabled]="!replyText.trim()">Skicka</button>
+              </form>
             }
           </li>
         }
@@ -54,7 +95,7 @@ import { WskSyncService } from '../services/wsk-sync.service';
       border-radius: var(--radius-lg);
       display: flex;
       flex-direction: column;
-      gap: 0.3rem;
+      gap: 0.4rem;
     }
     .event-head {
       display: flex;
@@ -67,10 +108,7 @@ import { WskSyncService } from '../services/wsk-sync.service';
       color: var(--amber);
       font-size: 1rem;
     }
-    .when {
-      color: var(--text-dim);
-      font-size: 0.78rem;
-    }
+    .when { color: var(--text-dim); font-size: 0.78rem; }
     .event-label {
       color: var(--text-muted);
       font-style: italic;
@@ -98,12 +136,120 @@ import { WskSyncService } from '../services/wsk-sync.service';
       padding: env(safe-area-inset-top, 1rem) 1rem env(safe-area-inset-bottom, 1rem);
       max-height: 100vh;
     }
+
+    .reaction-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      padding-top: 0.15rem;
+    }
+    .emoji-count {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .emoji-count .dim { font-size: 0.7rem; }
+
+    .reply {
+      display: flex;
+      gap: 0.4rem;
+      align-items: baseline;
+      font-size: 0.88rem;
+    }
+    .reply-author {
+      font-family: var(--font-display);
+      font-style: italic;
+      color: var(--amber);
+    }
+    .reply-text { color: var(--text); }
+
+    .reaction-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      padding-top: 0.3rem;
+      border-top: 1px dashed var(--border);
+    }
+    .emoji-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.3rem 0.6rem;
+      font-size: 1.05rem;
+      min-height: 36px;
+      min-width: 38px;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .emoji-btn:active { transform: scale(0.92); }
+    .emoji-btn.plus {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      font-weight: 300;
+      margin-left: auto;
+    }
+
+    .reply-form {
+      display: flex;
+      gap: 0.4rem;
+      align-items: stretch;
+      margin-top: 0.25rem;
+    }
+    .reply-form input { flex: 1; min-height: 40px; }
+    .reply-form .btn { white-space: nowrap; min-height: 40px; padding: 0.3rem 0.85rem; }
   `],
 })
 export class WskFeedComponent {
   private sync = inject(WskSyncService);
+  needsName = output<void>();
+
   protected feed = computed(() => this.sync.feed());
   protected enlarge = signal<string | null>(null);
+  protected replyOpen = signal<string | null>(null);
+  protected replyText = '';
+  protected readonly quickEmojis = QUICK_EMOJIS;
+
+  protected emojisFor(drinkId: string): Reaction[] {
+    return this.sync.reactions().filter(r => r.drinkId === drinkId && r.kind === 'emoji');
+  }
+
+  protected textsFor(drinkId: string): Reaction[] {
+    return this.sync.reactions().filter(r => r.drinkId === drinkId && r.kind === 'text');
+  }
+
+  protected groupedEmojis(drinkId: string): { emoji: string; count: number }[] {
+    const counts = new Map<string, number>();
+    for (const r of this.emojisFor(drinkId)) {
+      counts.set(r.content, (counts.get(r.content) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).map(([emoji, count]) => ({ emoji, count }));
+  }
+
+  protected onEmoji(drinkId: string, emoji: string): void {
+    if (!this.sync.postReaction(drinkId, 'emoji', emoji)) {
+      this.needsName.emit();
+    }
+  }
+
+  protected toggleReply(drinkId: string): void {
+    this.replyOpen.update(cur => cur === drinkId ? null : drinkId);
+    this.replyText = '';
+  }
+
+  protected onSendReply(drinkId: string): void {
+    const text = this.replyText.trim();
+    if (!text) return;
+    if (!this.sync.postReaction(drinkId, 'text', text)) {
+      this.needsName.emit();
+      return;
+    }
+    this.replyText = '';
+    this.replyOpen.set(null);
+  }
 
   protected formatTime(ms: number): string {
     const d = new Date(ms);

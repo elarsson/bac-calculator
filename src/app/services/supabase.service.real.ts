@@ -3,7 +3,7 @@ import {
   createClient, RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient,
 } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { BacCurvePayload, FeedDrink } from '../models/models';
+import { BacCurvePayload, FeedDrink, Reaction } from '../models/models';
 
 export interface ClaimResult {
   ok: boolean;
@@ -46,6 +46,26 @@ function drinkRowToFeed(row: DrinkRow): FeedDrink {
     occurredAt: new Date(row.occurred_at).getTime(),
     label: row.label ?? undefined,
     photoUrl: row.photo_url ?? undefined,
+  };
+}
+
+interface ReactionRow {
+  id: string;
+  drink_id: string;
+  author_name: string;
+  kind: 'emoji' | 'text';
+  content: string;
+  created_at: string;
+}
+
+function reactionRowToModel(row: ReactionRow): Reaction {
+  return {
+    id: row.id,
+    drinkId: row.drink_id,
+    authorName: row.author_name,
+    kind: row.kind,
+    content: row.content,
+    createdAt: new Date(row.created_at).getTime(),
   };
 }
 
@@ -265,6 +285,70 @@ export class SupabaseService {
           const row = msg.new as DrinkRow | undefined;
           if (row?.id) {
             state.set(row.id, drinkRowToFeed(row));
+            emit();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => { void client.removeChannel(channel); };
+  }
+
+  async addReaction(reaction: Reaction): Promise<void> {
+    if (!this.client) return;
+    try {
+      await this.client.from('reactions').insert({
+        id: reaction.id,
+        drink_id: reaction.drinkId,
+        author_name: reaction.authorName,
+        kind: reaction.kind,
+        content: reaction.content,
+      });
+    } catch {
+      // swallow
+    }
+  }
+
+  async fetchReactions(): Promise<Reaction[]> {
+    if (!this.client) return [];
+    try {
+      const { data, error } = await this.client
+        .from('reactions')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(2000);
+      if (error || !data) return [];
+      return (data as ReactionRow[]).map(reactionRowToModel);
+    } catch {
+      return [];
+    }
+  }
+
+  subscribeReactions(onChange: (reactions: Reaction[]) => void): UnsubscribeFn {
+    if (!this.client) return () => undefined;
+    const client = this.client;
+    const state = new Map<string, Reaction>();
+    const emit = () => onChange(Array.from(state.values()).sort((a, b) => a.createdAt - b.createdAt));
+
+    void this.fetchReactions().then(rs => {
+      rs.forEach(r => state.set(r.id, r));
+      emit();
+    });
+
+    const channel: RealtimeChannel = client
+      .channel('wsk-reactions')
+      .on<ReactionRow>(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reactions' },
+        (msg: RealtimePostgresChangesPayload<ReactionRow>) => {
+          if (msg.eventType === 'DELETE') {
+            const id = (msg.old as Partial<ReactionRow> | null)?.id;
+            if (id) { state.delete(id); emit(); }
+            return;
+          }
+          const row = msg.new as ReactionRow | undefined;
+          if (row?.id) {
+            state.set(row.id, reactionRowToModel(row));
             emit();
           }
         },

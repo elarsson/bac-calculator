@@ -140,7 +140,7 @@ import { environment } from '../environments/environment';
 
         <section class="card">
           <h2 class="section-title">Flödet</h2>
-          <app-wsk-feed />
+          <app-wsk-feed (needsName)="openClaim()" />
         </section>
 
         <section class="card identity-card">
