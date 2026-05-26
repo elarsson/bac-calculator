@@ -29,13 +29,25 @@ jobs:
 
       - run: npm ci --legacy-peer-deps
 
+      # Offline (BAC calculator) at /bac-calculator/
       - run: npx ng build --base-href /bac-calculator/
+
+      # Social (Suparkompisen / WSK) at /bac-calculator/wsk/
+      - run: npx ng build --configuration=social --base-href /bac-calculator/wsk/
+
+      # Combine into a single publish tree: offline at root, social under /wsk/
+      - name: Stage publish tree
+        run: |
+          mkdir -p publish
+          cp -r dist/bac-calculator/browser/. publish/
+          mkdir -p publish/wsk
+          cp -r dist/suparkompisen-social/browser/. publish/wsk/
 
       - uses: actions/configure-pages@v4
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/bac-calculator/browser
+          path: publish
 
       - uses: actions/deploy-pages@v4
         id: deployment
