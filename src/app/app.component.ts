@@ -1,11 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { StorageService } from './services/storage.service';
 import { BacStatusComponent } from './components/bac-status.component';
 import { BacChartComponent } from './components/bac-chart.component';
 import { AddDrinkModalComponent } from './components/add-drink-modal.component';
 import { DrinkHistoryComponent } from './components/drink-history.component';
 import { ProfileEditorComponent } from './components/profile-editor.component';
-import { STOMACH_LABELS, StomachState } from './models/models';
+import { SharingMode, STOMACH_LABELS, StomachState } from './models/models';
+import { environment } from '../environments/environment';
 
 @Component({
   selector: 'app-root',
@@ -21,9 +22,27 @@ import { STOMACH_LABELS, StomachState } from './models/models';
   template: `
     <main>
       <header>
-        <h1 class="title">Suparkompisen</h1>
+        <h1 class="title">
+          Suparkompisen
+          @if (social && storage.sharingMode() === 'festar') { <span class="title-flair">🎉</span> }
+        </h1>
         <p class="subtitle">din personliga drinklogg</p>
       </header>
+
+      @if (social && storage.profile()) {
+        <div class="mode-toggle" role="tablist" aria-label="Delningsläge">
+          @for (m of modeOptions; track m) {
+            <button
+              class="mode-pill"
+              role="tab"
+              [class.active]="storage.sharingMode() === m"
+              [attr.aria-selected]="storage.sharingMode() === m"
+              (click)="setMode(m)">
+              {{ modeLabel(m) }}
+            </button>
+          }
+        </div>
+      }
 
       @if (!storage.profile()) {
         <section class="card hero">
@@ -112,16 +131,48 @@ import { STOMACH_LABELS, StomachState } from './models/models';
       color: var(--amber);
       letter-spacing: 0.04em;
     }
-    .dot {
-      color: var(--text-dim);
-      font-weight: 400;
-      margin: 0 0.1em;
+    .title-flair {
+      display: inline-block;
+      margin-left: 0.35em;
+      animation: flair-bob 1.8s ease-in-out infinite;
+    }
+    @keyframes flair-bob {
+      0%, 100% { transform: translateY(0) rotate(-6deg); }
+      50%      { transform: translateY(-3px) rotate(6deg); }
     }
     .subtitle {
       font-family: var(--font-display);
       font-style: italic;
       color: var(--text-muted);
       font-size: 0.92rem;
+    }
+
+    /* Smygsuper / Festar toggle */
+    .mode-toggle {
+      display: flex;
+      gap: 0;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      padding: 4px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .mode-pill {
+      flex: 1;
+      padding: 0.55rem 0.75rem;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      transition: background 0.18s ease, color 0.18s ease;
+      min-height: 40px;
+    }
+    .mode-pill.active {
+      background: var(--amber);
+      color: var(--bg);
     }
 
     .hero { padding: 1.25rem; }
@@ -215,8 +266,24 @@ export class AppComponent {
   historyOpen = signal(true);
   profileOpen = signal(false);
 
+  readonly social = environment.social;
   stomachOptions: StomachState[] = ['empty', 'food', 'heavy'];
+  modeOptions: SharingMode[] = ['smygsuper', 'festar'];
+
+  constructor() {
+    if (environment.social) {
+      effect(() => {
+        const m = this.storage.sharingMode();
+        const cls = document.documentElement.classList;
+        cls.toggle('mode-festar', m === 'festar');
+        cls.toggle('mode-smygsuper', m === 'smygsuper');
+      });
+    }
+  }
 
   setStomach(s: StomachState): void { this.storage.setStomachState(s); }
   stomachLabel(s: StomachState): string { return STOMACH_LABELS[s]; }
+
+  setMode(m: SharingMode): void { this.storage.setSharingMode(m); }
+  modeLabel(m: SharingMode): string { return m === 'smygsuper' ? 'Smygsuper' : 'Festar'; }
 }

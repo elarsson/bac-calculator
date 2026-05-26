@@ -2,6 +2,8 @@ export type Sex = 'male' | 'female';
 
 export type StomachState = 'empty' | 'food' | 'heavy';
 
+export type SharingMode = 'smygsuper' | 'festar';
+
 export interface Profile {
   sex: Sex;
   age: number;

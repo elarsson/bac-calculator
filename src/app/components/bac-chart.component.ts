@@ -45,10 +45,15 @@ export class BacChartComponent implements OnInit, OnDestroy {
     const profile = this.storage.profile();
     const drinks = this.sessionDrinks();
     const now = this.now();
+    const mode = this.storage.sharingMode();
     if (!profile || drinks.length === 0) {
       return { datasets: [] };
     }
     const curve = this.bacService.computeCurve(drinks, profile, now);
+    const accent       = mode === 'festar' ? '#e85aad' : '#d4974a';
+    const accentBright = mode === 'festar' ? '#ff7cc3' : '#e8b76a';
+    const accentFill   = mode === 'festar' ? 'rgba(232, 90, 173, 0.14)' : 'rgba(212, 151, 74, 0.12)';
+    const accentFillFaint = mode === 'festar' ? 'rgba(232, 90, 173, 0.05)' : 'rgba(212, 151, 74, 0.04)';
 
     // Split points at `now` into actual and projected
     const actual: { x: number; y: number }[] = [];
@@ -85,8 +90,8 @@ export class BacChartComponent implements OnInit, OnDestroy {
         {
           label: 'BAC',
           data: actual,
-          borderColor: '#d4974a',
-          backgroundColor: 'rgba(212, 151, 74, 0.12)',
+          borderColor: accent,
+          backgroundColor: accentFill,
           borderWidth: 2,
           pointRadius: 0,
           tension: 0.25,
@@ -95,8 +100,8 @@ export class BacChartComponent implements OnInit, OnDestroy {
         {
           label: 'Projected',
           data: projected,
-          borderColor: '#d4974a',
-          backgroundColor: 'rgba(212, 151, 74, 0.04)',
+          borderColor: accent,
+          backgroundColor: accentFillFaint,
           borderWidth: 2,
           borderDash: [5, 5],
           pointRadius: 0,
@@ -106,8 +111,8 @@ export class BacChartComponent implements OnInit, OnDestroy {
         {
           label: 'Drinks',
           data: drinkMarkers,
-          borderColor: 'rgba(232, 183, 106, 0.9)',
-          backgroundColor: '#e8b76a',
+          borderColor: accentBright,
+          backgroundColor: accentBright,
           pointRadius: 4,
           pointHoverRadius: 6,
           showLine: false,

@@ -37,6 +37,23 @@
               ],
               "outputHashing": "all"
             },
+            "social": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1mb",
+                  "maximumError": "3mb"
+                }
+              ],
+              "outputHashing": "all",
+              "outputPath": "dist/suparkompisen-social",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.social.ts"
+                }
+              ]
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,
