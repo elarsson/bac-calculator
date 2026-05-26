@@ -1,4 +1,4 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { BacCurvePayload, Drink, FeedDrink, Reaction, ReactionKind } from '../models/models';
 import { BacService } from './bac.service';
 import { PhotoStoreService } from './photo-store.service';
@@ -97,7 +97,12 @@ export class WskSyncService {
         this.startUploading();
       } else {
         this.stopUploading();
-        if (identity && this.supabase.configured) {
+        // Only fire the wipe on a real Festar → Smygsuper transition.
+        // sharingStartedAt is non-null exactly when the user has been
+        // sharing; reading via untracked() keeps the effect free of an
+        // extra dependency that would re-trigger it on every clear.
+        const wasSharing = untracked(() => this.storage.sharingStartedAt() !== null);
+        if (wasSharing && identity && this.supabase.configured) {
           // Single server-side bulk delete; doesn't rely on the local
           // feed mirror, so drinks uploaded just before toggle-off can't
           // survive due to subscription lag.
