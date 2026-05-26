@@ -6,6 +6,7 @@ import { AddDrinkModalComponent } from './components/add-drink-modal.component';
 import { DrinkHistoryComponent } from './components/drink-history.component';
 import { ProfileEditorComponent } from './components/profile-editor.component';
 import { WskClaimModalComponent } from './components/wsk-claim-modal.component';
+import { WskChartComponent } from './components/wsk-chart.component';
 import { SharingMode, STOMACH_LABELS, StomachState } from './models/models';
 import { environment } from '../environments/environment';
 
@@ -19,6 +20,7 @@ import { environment } from '../environments/environment';
     DrinkHistoryComponent,
     ProfileEditorComponent,
     WskClaimModalComponent,
+    WskChartComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -130,9 +132,8 @@ import { environment } from '../environments/environment';
         </footer>
       } @else {
 
-        <section class="card wsk-empty">
-          <h2 class="section-title">WSK</h2>
-          <p class="muted">Här kommer den delade grafen att visas — när någon i gänget börjar festa.</p>
+        <section class="card chart-card">
+          <app-wsk-chart />
         </section>
 
         <section class="card identity-card">

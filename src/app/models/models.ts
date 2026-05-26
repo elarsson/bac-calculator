@@ -11,6 +11,17 @@ export interface WskIdentity {
   avatarDataUrl?: string;
 }
 
+/** Lightweight payload uploaded per Festar tick. */
+export interface BacCurvePayload {
+  participantName: string;
+  /** [{t: ms, bac: %}, …] — already simplified for chart rendering. */
+  curve: { t: number; bac: number }[];
+  currentBac: number;
+  firstSoberDrinkAt: number | null;
+  /** Wall-clock timestamp the row was last updated (ms). */
+  updatedAt: number;
+}
+
 export interface Profile {
   sex: Sex;
   age: number;

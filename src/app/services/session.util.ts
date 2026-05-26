@@ -1,4 +1,5 @@
-import { Drink } from '../models/models';
+import { Drink, Profile } from '../models/models';
+import { BacService } from './bac.service';
 
 /** Gap in hours that signals end of a drinking session */
 export const SESSION_GAP_HOURS = 8;
@@ -50,4 +51,33 @@ function toSession(drinks: Drink[]): DrinkSession {
 export function currentSessionDrinks(drinks: Drink[]): Drink[] {
   const sessions = groupIntoSessions(drinks);
   return sessions[0]?.drinks ?? [];
+}
+
+const SOBER_THRESHOLD = 0.001; // % BAC considered effectively sober
+
+/**
+ * Timestamp (ms) of the first drink in the user's current "binge" — the
+ * earliest drink in a continuous run where the BAC never reached 0 between
+ * consecutive drinks. Returns null when the user has never had a drink.
+ */
+export function firstSoberDrinkAt(
+  drinks: Drink[],
+  bac: BacService,
+  profile: Profile,
+): number | null {
+  if (drinks.length === 0) return null;
+  const sorted = [...drinks].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+  let bingeStart: number | null = null;
+  for (let i = 0; i < sorted.length; i++) {
+    const t = new Date(sorted[i].timestamp).getTime();
+    if (i === 0) { bingeStart = t; continue; }
+    const prior = sorted.slice(0, i);
+    const curve = bac.computeCurve(prior, profile, t - 1);
+    if (curve.currentBac < SOBER_THRESHOLD) {
+      bingeStart = t;
+    }
+  }
+  return bingeStart;
 }
