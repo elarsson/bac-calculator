@@ -1,38 +1,13 @@
 import {
-  ChangeDetectionStrategy, Component, effect, ElementRef, inject, input, output, signal, untracked, ViewChild,
+  ChangeDetectionStrategy, Component, effect, inject, input, output, signal, untracked,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { StorageService } from '../services/storage.service';
+import { resizeSquareJpeg } from '../services/image.util';
 import { WskIdentity } from '../models/models';
 
 const AVATAR_SIZE = 256;
-const JPEG_QUALITY = 0.85;
 const MAX_NAME_LEN = 24;
-
-async function resizeToSquareJpeg(file: File): Promise<string> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const i = new Image();
-    i.onload = () => resolve(i);
-    i.onerror = () => reject(new Error('image load failed'));
-    i.src = dataUrl;
-  });
-  const minDim = Math.min(img.width, img.height);
-  const sx = (img.width - minDim) / 2;
-  const sy = (img.height - minDim) / 2;
-  const canvas = document.createElement('canvas');
-  canvas.width = AVATAR_SIZE;
-  canvas.height = AVATAR_SIZE;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('canvas 2d unavailable');
-  ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, AVATAR_SIZE, AVATAR_SIZE);
-  return canvas.toDataURL('image/jpeg', JPEG_QUALITY);
-}
 
 @Component({
   selector: 'app-wsk-claim-modal',
@@ -255,7 +230,7 @@ export class WskClaimModalComponent {
     if (!file) return;
     this.processing.set(true);
     try {
-      const dataUrl = await resizeToSquareJpeg(file);
+      const dataUrl = await resizeSquareJpeg(file, AVATAR_SIZE);
       this.avatarDataUrl.set(dataUrl);
     } catch {
       this.errorMsg.set('Kunde inte läsa bilden.');

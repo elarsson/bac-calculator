@@ -30,6 +30,8 @@ export interface Drink {
   stomachState: StomachState;
   /** Optional human-readable label */
   label?: string;
+  /** Optional key into the IndexedDB photo store (rear-camera shot of the drink) */
+  photoId?: string;
 }
 
 export interface StrengthPreset {

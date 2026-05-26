@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { StorageService } from '../services/storage.service';
+import { PhotoStoreService } from '../services/photo-store.service';
 import { groupIntoSessions, DrinkSession } from '../services/session.util';
 import { Drink, STOMACH_LABELS } from '../models/models';
+import { PhotoThumbComponent } from './photo-thumb.component';
 
 function toLocalInputValue(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
@@ -12,7 +14,7 @@ function toLocalInputValue(d: Date): string {
 @Component({
   selector: 'app-drink-history',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, PhotoThumbComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (sessions().length === 0) {
@@ -46,6 +48,9 @@ function toLocalInputValue(d: Date): string {
                 </form>
               } @else {
                 <div class="row-main">
+                  @if (d.photoId) {
+                    <app-photo-thumb [photoId]="d.photoId" />
+                  }
                   <div class="row-left">
                     <div class="row-title">
                       <span class="time mono">{{ formatTime(d.timestamp) }}</span>
@@ -59,7 +64,7 @@ function toLocalInputValue(d: Date): string {
                   </div>
                   <div class="row-actions">
                     <button class="btn btn-ghost" (click)="startEdit(d)">Redigera</button>
-                    <button class="btn btn-ghost danger" (click)="remove(d.id)">×</button>
+                    <button class="btn btn-ghost danger" (click)="remove(d)">×</button>
                   </div>
                 </div>
               }
@@ -163,6 +168,7 @@ function toLocalInputValue(d: Date): string {
 export class DrinkHistoryComponent {
   private storage = inject(StorageService);
   private fb = inject(FormBuilder);
+  private photoStore = inject(PhotoStoreService);
 
   editingId = signal<string | null>(null);
   confirmingClear = signal(false);
@@ -205,8 +211,11 @@ export class DrinkHistoryComponent {
     this.editingId.set(null);
   }
 
-  remove(id: string): void {
-    this.storage.deleteDrink(id);
+  remove(d: Drink): void {
+    if (d.photoId) {
+      this.photoStore.delete(d.photoId).catch(() => undefined);
+    }
+    this.storage.deleteDrink(d.id);
   }
 
   confirmClear(): void {
@@ -216,6 +225,8 @@ export class DrinkHistoryComponent {
       return;
     }
     if (this.clearTimeout) clearTimeout(this.clearTimeout);
+    const ids = this.storage.drinks().map(d => d.photoId).filter((id): id is string => !!id);
+    ids.forEach(id => this.photoStore.delete(id).catch(() => undefined));
     this.storage.clearDrinks();
     this.confirmingClear.set(false);
   }

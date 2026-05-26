@@ -4,6 +4,8 @@ import {
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { StorageService } from '../services/storage.service';
 import { BacService } from '../services/bac.service';
+import { PhotoStoreService } from '../services/photo-store.service';
+import { resizeMaxDimJpeg } from '../services/image.util';
 import { currentSessionDrinks } from '../services/session.util';
 import {
   DRINK_CATEGORIES, DrinkCategory, Drink, STOMACH_LABELS, StomachState,
@@ -114,6 +116,19 @@ function toLocal(d: Date): string {
           <label for="m-label">Namn (valfritt)</label>
           <input id="m-label" type="text" formControlName="label"
                  placeholder="t.ex. IPA, Negroni" autocomplete="off" />
+        </div>
+
+        <div class="photo-row">
+          <button class="btn btn-secondary" type="button" [disabled]="processingPhoto()" (click)="photoInput.click()">
+            {{ processingPhoto() ? 'Läser in…' : pendingPhoto() ? 'Byt bild' : 'Lägg till bild' }}
+          </button>
+          @if (pendingPhoto(); as p) {
+            <div class="photo-preview">
+              <img [src]="p" alt="" />
+              <button class="photo-remove" type="button" aria-label="Ta bort bild" (click)="clearPhoto()">×</button>
+            </div>
+          }
+          <input #photoInput type="file" accept="image/*" capture="environment" hidden (change)="onPhoto($event)" />
         </div>
 
         @if (previewSober(); as s) {
@@ -307,6 +322,40 @@ function toLocal(d: Date): string {
       font-size: 1rem;
     }
 
+    .photo-row {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+    .photo-row .btn { flex: 1; }
+    .photo-preview {
+      position: relative;
+      width: 56px; height: 56px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .photo-preview img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .photo-remove {
+      position: absolute;
+      top: -6px; right: -6px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      font-size: 0.8rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .preview {
       display: flex;
       justify-content: space-between;
@@ -339,10 +388,13 @@ export class AddDrinkModalComponent {
   protected storage = inject(StorageService);
   private bac = inject(BacService);
   private fb = inject(FormBuilder);
+  private photoStore = inject(PhotoStoreService);
 
   protected categories: DrinkCategory[] = DRINK_CATEGORIES;
   protected stomachOptions: StomachState[] = ['empty', 'food', 'heavy'];
   protected activeCat = signal<'beer' | 'wine' | 'liquor'>('beer');
+  protected pendingPhoto = signal<string | undefined>(undefined);
+  protected processingPhoto = signal(false);
 
   protected currentStrengthPresets = computed(() =>
     this.categories.find(c => c.key === this.activeCat())?.strengthPresets ?? []
@@ -373,6 +425,8 @@ export class AddDrinkModalComponent {
   private prefillFromLastDrink(): void {
     const drinks = this.storage.drinks();
     this.form.patchValue({ timestamp: toLocal(new Date()), label: '' });
+    this.pendingPhoto.set(undefined);
+    this.processingPhoto.set(false);
     if (drinks.length === 0) return;
     const last = [...drinks].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
@@ -435,6 +489,25 @@ export class AddDrinkModalComponent {
     this.form.patchValue({ timestamp: toLocal(new Date()) });
   }
 
+  protected async onPhoto(ev: Event): Promise<void> {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    this.processingPhoto.set(true);
+    try {
+      this.pendingPhoto.set(await resizeMaxDimJpeg(file, 800));
+    } catch {
+      // ignore failed read
+    } finally {
+      this.processingPhoto.set(false);
+    }
+  }
+
+  protected clearPhoto(): void {
+    this.pendingPhoto.set(undefined);
+  }
+
   protected setStomach(s: StomachState): void {
     this.storage.setStomachState(s);
   }
@@ -443,16 +516,28 @@ export class AddDrinkModalComponent {
     return STOMACH_LABELS[s];
   }
 
-  protected add(): void {
+  protected async add(): Promise<void> {
     if (this.form.invalid) return;
     const v = this.form.getRawValue();
+    const id = crypto.randomUUID();
+    let photoId: string | undefined;
+    const photo = this.pendingPhoto();
+    if (photo) {
+      photoId = crypto.randomUUID();
+      try {
+        await this.photoStore.put(photoId, photo);
+      } catch {
+        photoId = undefined;
+      }
+    }
     this.storage.addDrink({
-      id: crypto.randomUUID(),
+      id,
       volumeMl: v.volumeCl * 10,
       abv: v.abv,
       timestamp: new Date(v.timestamp).toISOString(),
       stomachState: this.storage.stomachState(),
       label: v.label || undefined,
+      photoId,
     });
     this.close.emit();
   }
