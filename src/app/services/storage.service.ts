@@ -6,6 +6,19 @@ const K_DRINKS = 'bac.drinks';
 const K_STOMACH = 'bac.stomach';
 const K_MODE = 'bac.sharingMode';
 const K_IDENTITY = 'bac.wskIdentity';
+const K_DEVICE_ID = 'bac.deviceId';
+
+function readOrCreateDeviceId(): string {
+  try {
+    const existing = localStorage.getItem(K_DEVICE_ID);
+    if (existing) return existing;
+    const fresh = crypto.randomUUID();
+    localStorage.setItem(K_DEVICE_ID, fresh);
+    return fresh;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
 
 function readJSON<T>(key: string): T | null {
   try {
@@ -38,6 +51,7 @@ export class StorageService {
   readonly wskIdentity = signal<WskIdentity | null>(
     readJSON<WskIdentity>(K_IDENTITY)
   );
+  readonly deviceId = readOrCreateDeviceId();
 
   constructor() {
     effect(() => writeJSON(K_PROFILE, this.profile()));

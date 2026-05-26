@@ -51,6 +51,10 @@
                 {
                   "replace": "src/environments/environment.ts",
                   "with": "src/environments/environment.social.ts"
+                },
+                {
+                  "replace": "src/app/services/supabase.service.ts",
+                  "with": "src/app/services/supabase.service.real.ts"
                 }
               ]
             },

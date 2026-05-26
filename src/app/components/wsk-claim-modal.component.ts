@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { StorageService } from '../services/storage.service';
+import { SupabaseService } from '../services/supabase.service';
 import { resizeSquareJpeg } from '../services/image.util';
 import { WskIdentity } from '../models/models';
 
@@ -196,6 +197,7 @@ export class WskClaimModalComponent {
 
   protected storage = inject(StorageService);
   private fb = inject(FormBuilder);
+  private supabase = inject(SupabaseService);
 
   protected readonly MAX_NAME_LEN = MAX_NAME_LEN;
   protected existing = signal<WskIdentity | null>(null);
@@ -247,20 +249,36 @@ export class WskClaimModalComponent {
     this.cancelled.emit();
   }
 
-  protected save(): void {
+  protected async save(): Promise<void> {
     const name = (this.form.getRawValue().name ?? '').trim();
     if (!name) {
       this.errorMsg.set('Skriv ett namn.');
       return;
     }
-    // Duplicate check is a server concern once Supabase lands. For now
-    // we only block re-claiming the same row in the same browser; if the
-    // entered name matches an existing other-device claim, treat as edit.
-    const identity: WskIdentity = {
-      name,
-      avatarDataUrl: this.avatarDataUrl(),
-    };
-    this.storage.setWskIdentity(identity);
-    this.saved.emit(identity);
+    this.processing.set(true);
+    this.errorMsg.set(null);
+    try {
+      if (this.supabase.configured) {
+        const result = await this.supabase.claimName(name, this.storage.deviceId);
+        if (!result.ok) {
+          if (result.reason === 'duplicate') {
+            this.errorMsg.set('Namnet är upptaget. Välj ett annat.');
+          } else if (result.reason === 'offline') {
+            this.errorMsg.set('Kan inte nå servern just nu.');
+          } else {
+            this.errorMsg.set('Något gick fel. Försök igen.');
+          }
+          return;
+        }
+      }
+      const identity: WskIdentity = {
+        name,
+        avatarDataUrl: this.avatarDataUrl(),
+      };
+      this.storage.setWskIdentity(identity);
+      this.saved.emit(identity);
+    } finally {
+      this.processing.set(false);
+    }
   }
 }
