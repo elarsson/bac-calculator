@@ -8,7 +8,7 @@ import { PhotoStoreService } from '../services/photo-store.service';
 import { resizeMaxDimJpeg } from '../services/image.util';
 import { currentSessionDrinks } from '../services/session.util';
 import {
-  DRINK_CATEGORIES, DrinkCategory, Drink, STOMACH_LABELS, StomachState,
+  DRINK_CATEGORIES, DrinkCategory, DrinkCategoryKey, Drink, STOMACH_LABELS, StomachState,
 } from '../models/models';
 
 function toLocal(d: Date): string {
@@ -231,7 +231,7 @@ function toLocal(d: Date): string {
 
     .cat-tabs {
       display: flex;
-      gap: 0.5rem;
+      gap: 0.3rem;
       margin-bottom: 1rem;
     }
     .cat-tab {
@@ -239,23 +239,25 @@ function toLocal(d: Date): string {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.2rem;
-      padding: 0.6rem 0.25rem;
+      justify-content: center;
+      gap: 0.15rem;
+      padding: 0.45rem 0.15rem;
       border-radius: var(--radius-lg);
       background: var(--bg-card);
       border: 2px solid transparent;
       transition: all 0.15s ease;
-      min-height: 58px;
+      min-height: 54px;
+      min-width: 0;
     }
     .cat-tab.active {
       border-color: var(--amber);
       background: var(--bg);
     }
-    .cat-icon { font-size: 1.4rem; line-height: 1; }
+    .cat-icon { font-size: 1.25rem; line-height: 1; }
     .cat-label {
-      font-size: 0.72rem;
+      font-size: 0.62rem;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.04em;
       color: var(--text-muted);
     }
     .cat-tab.active .cat-label { color: var(--amber); }
@@ -392,7 +394,7 @@ export class AddDrinkModalComponent {
 
   protected categories: DrinkCategory[] = DRINK_CATEGORIES;
   protected stomachOptions: StomachState[] = ['empty', 'food', 'heavy'];
-  protected activeCat = signal<'beer' | 'wine' | 'liquor'>('beer');
+  protected activeCat = signal<DrinkCategoryKey>('beer');
   protected pendingPhoto = signal<string | undefined>(undefined);
   protected processingPhoto = signal(false);
 
@@ -431,12 +433,14 @@ export class AddDrinkModalComponent {
     const last = [...drinks].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     )[0];
-    const cat = this.inferCategory(last.abv);
+    // Prefer the explicit category from the last drink. Fall back to the
+    // legacy ABV-based inference for drinks logged before that field existed.
+    const cat = last.category ?? this.inferCategory(last.abv);
     this.activeCat.set(cat);
     this.form.patchValue({ abv: last.abv, volumeCl: last.volumeMl / 10 });
   }
 
-  private inferCategory(abv: number): 'beer' | 'wine' | 'liquor' {
+  private inferCategory(abv: number): DrinkCategoryKey {
     if (abv < 10) return 'beer';
     if (abv < 25) return 'wine';
     return 'liquor';
@@ -469,7 +473,7 @@ export class AddDrinkModalComponent {
     return Math.abs((this.formValue().volumeCl ?? 0) - cl) < 0.01;
   }
 
-  protected selectCategory(key: 'beer' | 'wine' | 'liquor'): void {
+  protected selectCategory(key: DrinkCategoryKey): void {
     this.activeCat.set(key);
     const cat = this.categories.find(c => c.key === key)!;
     const ds = cat.strengthPresets.find(s => s.default) ?? cat.strengthPresets[0];
@@ -538,6 +542,7 @@ export class AddDrinkModalComponent {
       stomachState: this.storage.stomachState(),
       label: v.label || undefined,
       photoId,
+      category: this.activeCat(),
     });
     this.close.emit();
   }

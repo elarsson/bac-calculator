@@ -3,7 +3,7 @@ import {
   createClient, RealtimeChannel, RealtimePostgresChangesPayload, SupabaseClient,
 } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
-import { BacCurvePayload, FeedDrink, Reaction } from '../models/models';
+import { BacCurvePayload, DrinkCategoryKey, FeedDrink, Reaction } from '../models/models';
 
 export interface ClaimResult {
   ok: boolean;
@@ -54,6 +54,7 @@ interface DrinkRow {
   photo_url: string | null;
   volume_ml: number | null;
   abv: number | null;
+  category: DrinkCategoryKey | null;
 }
 
 function drinkRowToFeed(row: DrinkRow): FeedDrink {
@@ -65,6 +66,7 @@ function drinkRowToFeed(row: DrinkRow): FeedDrink {
     photoUrl: row.photo_url ?? undefined,
     volumeMl: row.volume_ml ?? undefined,
     abv: row.abv ?? undefined,
+    category: row.category ?? undefined,
   };
 }
 
@@ -124,12 +126,31 @@ export class SupabaseService {
   /**
    * Claim a name in the WSK group. Returns:
    * - { ok: true } on successful insert/upsert
-   * - { ok: false, reason: 'duplicate' } if the name is already taken by another device
-   * - { ok: false, reason: 'offline' } if Supabase isn't configured/reachable
+   * - { ok: false, reason: 'duplicate' } if the name is taken by another
+   *   device and `force` was not set. The caller is expected to surface
+   *   a "is this you on another device?" confirmation prompt and re-call
+   *   with force=true.
+   * - { ok: false, reason: 'offline' } if Supabase isn't reachable.
    */
-  async claimName(name: string, deviceId: string, avatarUrl?: string): Promise<ClaimResult> {
+  async claimName(
+    name: string,
+    deviceId: string,
+    avatarUrl?: string,
+    force = false,
+  ): Promise<ClaimResult> {
     if (!this.client) return { ok: false, reason: 'offline' };
     try {
+      // Force = the user has confirmed they want to share this name across
+      // devices. Skip the insert and the device_id check; just refresh the
+      // row's avatar + last_seen so the second device's selfie wins.
+      if (force) {
+        await this.client
+          .from('participants')
+          .update({ avatar_url: avatarUrl ?? null, last_seen_at: new Date().toISOString() })
+          .eq('name', name);
+        return { ok: true };
+      }
+
       // Try to insert; on PK conflict, check whether the existing row is ours.
       const { error } = await this.client
         .from('participants')
@@ -175,8 +196,26 @@ export class SupabaseService {
           sharing_on: true,
           updated_at: new Date().toISOString(),
         });
+      void this.bumpLastSeen(payload.participantName);
     } catch {
       // ignore — next tick retries
+    }
+  }
+
+  /**
+   * Refresh participants.last_seen_at for this user. Fire-and-forget;
+   * called from every Festar-time write so a future "stale friend"
+   * indicator has data to work with.
+   */
+  private async bumpLastSeen(participantName: string): Promise<void> {
+    if (!this.client) return;
+    try {
+      await this.client
+        .from('participants')
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq('name', participantName);
+    } catch {
+      // swallow
     }
   }
 
@@ -253,7 +292,9 @@ export class SupabaseService {
         photo_url: drink.photoUrl ?? null,
         volume_ml: drink.volumeMl ?? null,
         abv: drink.abv ?? null,
+        category: drink.category ?? null,
       });
+      void this.bumpLastSeen(drink.participantName);
     } catch {
       // swallow
     }
@@ -355,6 +396,7 @@ export class SupabaseService {
         kind: reaction.kind,
         content: reaction.content,
       });
+      void this.bumpLastSeen(reaction.authorName);
     } catch {
       // swallow
     }

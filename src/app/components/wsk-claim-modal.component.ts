@@ -70,9 +70,27 @@ const MAX_NAME_LEN = 24;
           </div>
         </div>
 
-        <button class="btn btn-primary save-btn" type="submit" [disabled]="form.invalid || processing()">
-          {{ processing() ? 'Sparar…' : 'Spara' }}
-        </button>
+        @if (duplicatePrompt(); as dup) {
+          <div class="dup-prompt">
+            <p class="dup-text">
+              <strong>{{ dup.name }}</strong> finns redan i WSK. Är detta du själv på en annan enhet?
+            </p>
+            <p class="dup-note">Klart bland vänner — drycker du loggar här syns då under samma namn.</p>
+            <div class="dup-actions">
+              <button class="btn btn-primary" type="button"
+                      [disabled]="processing()" (click)="confirmDuplicate()">
+                {{ processing() ? 'Sparar…' : 'Ja, det är jag' }}
+              </button>
+              <button class="btn btn-ghost" type="button" (click)="cancelDuplicate()">
+                Avbryt
+              </button>
+            </div>
+          </div>
+        } @else {
+          <button class="btn btn-primary save-btn" type="submit" [disabled]="form.invalid || processing()">
+            {{ processing() ? 'Sparar…' : 'Spara' }}
+          </button>
+        }
       </form>
     </div>
   `,
@@ -188,6 +206,34 @@ const MAX_NAME_LEN = 24;
       border-radius: var(--radius-lg);
       margin-top: 0.5rem;
     }
+
+    .dup-prompt {
+      margin-top: 0.4rem;
+      padding: 0.85rem 0.95rem;
+      background: var(--bg);
+      border: 1px dashed var(--amber-dim);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .dup-text {
+      color: var(--text);
+      font-size: 0.95rem;
+      line-height: 1.35;
+    }
+    .dup-note {
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      font-style: italic;
+      font-family: var(--font-display);
+    }
+    .dup-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: stretch;
+    }
+    .dup-actions .btn { flex: 1; min-height: 44px; }
   `],
 })
 export class WskClaimModalComponent {
@@ -204,6 +250,8 @@ export class WskClaimModalComponent {
   protected avatarDataUrl = signal<string | undefined>(undefined);
   protected processing = signal(false);
   protected errorMsg = signal<string | null>(null);
+  /** Set when a same-name participant exists on a different device; surfaces the prompt. */
+  protected duplicatePrompt = signal<{ name: string } | null>(null);
 
   protected form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(MAX_NAME_LEN)]],
@@ -221,6 +269,7 @@ export class WskClaimModalComponent {
     const id = this.storage.wskIdentity();
     this.existing.set(id);
     this.errorMsg.set(null);
+    this.duplicatePrompt.set(null);
     this.form.patchValue({ name: id?.name ?? '' });
     this.avatarDataUrl.set(id?.avatarDataUrl);
   }
@@ -249,7 +298,14 @@ export class WskClaimModalComponent {
     this.cancelled.emit();
   }
 
-  protected async save(): Promise<void> {
+  protected save(): void { void this.doClaim(false); }
+  protected confirmDuplicate(): void { void this.doClaim(true); }
+  protected cancelDuplicate(): void {
+    this.duplicatePrompt.set(null);
+    this.errorMsg.set(null);
+  }
+
+  private async doClaim(force: boolean): Promise<void> {
     const name = (this.form.getRawValue().name ?? '').trim();
     if (!name) {
       this.errorMsg.set('Skriv ett namn.');
@@ -269,11 +325,15 @@ export class WskClaimModalComponent {
           avatarPublicUrl = localAvatar;
         }
 
-        const result = await this.supabase.claimName(name, this.storage.deviceId, avatarPublicUrl);
+        const result = await this.supabase.claimName(name, this.storage.deviceId, avatarPublicUrl, force);
         if (!result.ok) {
           if (result.reason === 'duplicate') {
-            this.errorMsg.set('Namnet är upptaget. Välj ett annat.');
-          } else if (result.reason === 'offline') {
+            // First-time collision: surface a confirmation prompt instead
+            // of erroring out. The user can re-call us with force=true.
+            this.duplicatePrompt.set({ name });
+            return;
+          }
+          if (result.reason === 'offline') {
             this.errorMsg.set('Kan inte nå servern just nu.');
           } else {
             this.errorMsg.set('Något gick fel. Försök igen.');
@@ -287,6 +347,7 @@ export class WskClaimModalComponent {
         avatarDataUrl: avatarPublicUrl ?? localAvatar,
       };
       this.storage.setWskIdentity(identity);
+      this.duplicatePrompt.set(null);
       this.saved.emit(identity);
     } finally {
       this.processing.set(false);

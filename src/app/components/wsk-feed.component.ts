@@ -3,11 +3,12 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WskSyncService } from '../services/wsk-sync.service';
-import { FeedDrink, Reaction } from '../models/models';
+import { CATEGORY_LABELS, FeedDrink, Reaction } from '../models/models';
 import { DistortedAvatarComponent } from './distorted-avatar.component';
 
 const QUICK_EMOJIS = ['🍻', '🔥', '😂', '💀', '👏', '🥂'];
 
+/** Legacy fallback for drinks logged before the explicit category was stored. */
 function categoryFromAbv(abv: number): string {
   if (abv < 10) return 'Öl';
   if (abv < 25) return 'Vin';
@@ -20,7 +21,7 @@ function fmtNum(n: number, frac: number): string {
 
 function describeDrink(e: FeedDrink): string | null {
   if (e.volumeMl == null || e.abv == null) return null;
-  const cat = categoryFromAbv(e.abv);
+  const cat = e.category ? CATEGORY_LABELS[e.category] : categoryFromAbv(e.abv);
   return `${cat} ${fmtNum(e.abv, 1)}%, ${fmtNum(e.volumeMl / 10, 1)} cl`;
 }
 

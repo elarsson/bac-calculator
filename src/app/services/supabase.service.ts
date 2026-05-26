@@ -24,7 +24,7 @@ export class SupabaseService {
     return false;
   }
 
-  async claimName(_name: string, _deviceId: string, _avatarUrl?: string): Promise<ClaimResult> {
+  async claimName(_name: string, _deviceId: string, _avatarUrl?: string, _force = false): Promise<ClaimResult> {
     return { ok: false, reason: 'offline' };
   }
 

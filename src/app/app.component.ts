@@ -6,8 +6,8 @@ import { AddDrinkModalComponent } from './components/add-drink-modal.component';
 import { DrinkHistoryComponent } from './components/drink-history.component';
 import { ProfileEditorComponent } from './components/profile-editor.component';
 import { WskClaimModalComponent } from './components/wsk-claim-modal.component';
-import { WskChartComponent } from './components/wsk-chart.component';
-import { WskFeedComponent } from './components/wsk-feed.component';
+import { WskTabComponent } from './components/wsk-tab.component';
+import { WskSyncService } from './services/wsk-sync.service';
 import { SharingMode, STOMACH_LABELS, StomachState } from './models/models';
 import { environment } from '../environments/environment';
 
@@ -21,8 +21,7 @@ import { environment } from '../environments/environment';
     DrinkHistoryComponent,
     ProfileEditorComponent,
     WskClaimModalComponent,
-    WskChartComponent,
-    WskFeedComponent,
+    WskTabComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -132,43 +131,20 @@ import { environment } from '../environments/environment';
         <footer>
           <p class="dim small">Watson · absorption av första ordningen · 0,15‰/tim eliminering</p>
         </footer>
-      } @else {
+      }
 
-        <section class="card chart-card">
-          <app-wsk-chart />
-        </section>
-
-        <section class="card">
-          <h2 class="section-title">Flödet</h2>
-          <app-wsk-feed (needsName)="openClaim()" />
-        </section>
-
-        <section class="card identity-card">
-          @if (storage.wskIdentity(); as id) {
-            <div class="identity-row">
-              <div class="avatar-circle" [class.empty]="!id.avatarDataUrl">
-                @if (id.avatarDataUrl) {
-                  <img [src]="id.avatarDataUrl" [alt]="id.name" />
-                } @else {
-                  <span class="mono dim">{{ id.name.charAt(0).toUpperCase() }}</span>
-                }
-              </div>
-              <div class="identity-info">
-                <span class="identity-label">Du i WSK</span>
-                <span class="identity-name">{{ id.name }}</span>
-              </div>
-              <button class="btn btn-ghost" type="button" (click)="openClaim()">Ändra</button>
-            </div>
-          } @else {
-            <div class="identity-row">
-              <div class="identity-info">
-                <span class="identity-label">Du är inte med än</span>
-                <span class="muted small">Ange ett namn för att reagera och dela din promille.</span>
-              </div>
-              <button class="btn btn-primary" type="button" (click)="openClaim()">Gå med</button>
-            </div>
+      @if (social) {
+        @defer (when activeTab() === 'wsk'; prefetch on idle) {
+          <app-wsk-tab (claimRequested)="openClaim()" />
+        } @placeholder {
+          @if (activeTab() === 'wsk') {
+            <p class="wsk-loading">Laddar WSK…</p>
           }
-        </section>
+        } @error {
+          @if (activeTab() === 'wsk') {
+            <p class="wsk-loading">Kunde inte ladda WSK.</p>
+          }
+        }
       }
 
       @if (social) {
@@ -247,53 +223,13 @@ import { environment } from '../environments/environment';
       border-radius: 2px;
     }
 
-    .wsk-empty {
-      padding: 2rem 1.25rem;
+    .wsk-loading {
+      padding: 1.25rem 1rem;
       text-align: center;
-    }
-    .wsk-empty .section-title { margin-bottom: 0.75rem; }
-
-    .identity-card { padding: 0.85rem 1rem; }
-    .identity-row {
-      display: flex;
-      align-items: center;
-      gap: 0.85rem;
-    }
-    .avatar-circle {
-      width: 48px; height: 48px;
-      border-radius: 50%;
-      overflow: hidden;
-      flex-shrink: 0;
-      background: var(--bg);
-      border: 1.5px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .avatar-circle.empty { font-size: 1rem; color: var(--text-muted); }
-    .avatar-circle img {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .identity-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-      flex: 1;
-      min-width: 0;
-    }
-    .identity-label {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
       color: var(--text-muted);
-    }
-    .identity-name {
-      font-family: var(--font-display);
-      font-size: 1.15rem;
-      color: var(--text);
       font-style: italic;
+      font-family: var(--font-display);
     }
-    .small { font-size: 0.8rem; }
 
     /* Smygsuper / Festar toggle */
     .mode-toggle {
@@ -409,6 +345,13 @@ import { environment } from '../environments/environment';
 })
 export class AppComponent {
   storage = inject(StorageService);
+  /**
+   * Eagerly instantiated so its sharingMode effect (curve upload,
+   * sharingStartedAt anchor, wipe on toggle-off) runs even when the
+   * user is on the Solo tab and the lazy WSK chunk hasn't loaded yet.
+   * In the offline build this is the stub-backed no-op service.
+   */
+  protected wskSync = inject(WskSyncService);
 
   modalOpen  = signal(false);
   historyOpen = signal(true);

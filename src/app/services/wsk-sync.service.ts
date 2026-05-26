@@ -270,6 +270,7 @@ export class WskSyncService {
       photoUrl,
       volumeMl: drink.volumeMl,
       abv: drink.abv,
+      category: drink.category,
     });
   }
 

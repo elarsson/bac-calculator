@@ -33,6 +33,8 @@ export interface FeedDrink {
   volumeMl?: number;
   /** ABV percent — used together with volumeMl to render the drink type line. */
   abv?: number;
+  /** Explicit category from the add-drink modal; preferred over ABV inference in the feed. */
+  category?: DrinkCategoryKey;
   /** Public URL to the uploaded photo (Supabase Storage), if any. */
   photoUrl?: string;
 }
@@ -69,6 +71,13 @@ export interface Drink {
   label?: string;
   /** Optional key into the IndexedDB photo store (rear-camera shot of the drink) */
   photoId?: string;
+  /**
+   * Which preset category this drink was logged from — used to render
+   * the drink-type line in the feed without re-inferring from ABV.
+   * Missing on drinks logged before this field was introduced; the feed
+   * falls back to the legacy ABV-based mapping for those.
+   */
+  category?: DrinkCategoryKey;
 }
 
 export interface StrengthPreset {
@@ -83,13 +92,29 @@ export interface VolumePreset {
   default?: boolean;
 }
 
+export type DrinkCategoryKey = 'beer' | 'wine' | 'liquor' | 'grogg' | 'cider' | 'drink';
+
 export interface DrinkCategory {
-  key: 'beer' | 'wine' | 'liquor';
+  key: DrinkCategoryKey;
   label: string;
   icon: string;
   strengthPresets: StrengthPreset[];
   volumePresets: VolumePreset[];
 }
+
+/**
+ * Human-readable category labels used in the WSK feed. Lives here so
+ * the feed component doesn't have to know about the DRINK_CATEGORIES
+ * source-of-truth structure.
+ */
+export const CATEGORY_LABELS: Record<DrinkCategoryKey, string> = {
+  beer:   'Öl',
+  wine:   'Vin',
+  liquor: 'Sprit',
+  grogg:  'Grogg',
+  cider:  'Cider',
+  drink:  'Drink',
+};
 
 export const DRINK_CATEGORIES: DrinkCategory[] = [
   {
@@ -134,6 +159,52 @@ export const DRINK_CATEGORIES: DrinkCategory[] = [
       { label: '4 cl', volumeCl: 4 },
       { label: '5 cl', volumeCl: 5 },
       { label: '6 cl', volumeCl: 6 },
+    ],
+  },
+  {
+    key: 'grogg',
+    label: 'Grogg',
+    icon: '🍹',
+    // Input is the amount of straight liquor that went into the glass,
+    // not the total drink size — the mixer is alcohol-free.
+    strengthPresets: [
+      { label: '37,5%', abv: 37.5, default: true },
+      { label: '40%', abv: 40 },
+    ],
+    volumePresets: [
+      { label: '3 cl', volumeCl: 3 },
+      { label: '4 cl', volumeCl: 4, default: true },
+      { label: '5 cl', volumeCl: 5 },
+      { label: '6 cl', volumeCl: 6 },
+    ],
+  },
+  {
+    key: 'cider',
+    label: 'Cider',
+    icon: '🍎',
+    strengthPresets: [
+      { label: '4,5%', abv: 4.5, default: true },
+      { label: '5%',   abv: 5.0 },
+      { label: '7,5%', abv: 7.5 },
+    ],
+    volumePresets: [
+      { label: '33 cl', volumeCl: 33 },
+      { label: '50 cl', volumeCl: 50, default: true },
+    ],
+  },
+  {
+    key: 'drink',
+    label: 'Drink',
+    icon: '🍸',
+    // Cocktail / mixed drink — input the total amount of liquor.
+    strengthPresets: [
+      { label: '37,5%', abv: 37.5, default: true },
+      { label: '40%', abv: 40 },
+    ],
+    volumePresets: [
+      { label: '4 cl', volumeCl: 4 },
+      { label: '6 cl', volumeCl: 6, default: true },
+      { label: '8 cl', volumeCl: 8 },
     ],
   },
 ];
