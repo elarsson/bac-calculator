@@ -233,6 +233,23 @@ export class WskSyncService {
   }
 
   /**
+   * Full WSK exit: wipes server content + participant row, then clears
+   * the local identity and any sharing state. After this the user
+   * looks brand-new to WSK and would have to claim a name again.
+   */
+  async leaveWsk(): Promise<void> {
+    const identity = this.storage.wskIdentity();
+    if (identity && this.supabase.configured) {
+      await this.supabase.deleteParticipant(identity.name);
+    }
+    this.stopUploading();
+    this.uploadedDrinkIds.clear();
+    this.storage.setSharingMode('smygsuper');
+    this.storage.setSharingStartedAt(null);
+    this.storage.setWskIdentity(null);
+  }
+
+  /**
    * Post a reaction. Returns false if the user has not claimed a name
    * yet (caller should prompt for one); true otherwise (even if the
    * server insert failed — fire and forget).

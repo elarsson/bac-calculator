@@ -40,6 +40,7 @@ export class SupabaseService {
   async upsertDrink(_drink: FeedDrink): Promise<void> { /* no-op */ }
   async deleteDrink(_id: string): Promise<void> { /* no-op */ }
   async wipeOwnContent(_participantName: string): Promise<void> { /* no-op */ }
+  async deleteParticipant(_participantName: string): Promise<void> { /* no-op */ }
   async fetchDrinks(_sinceMs?: number): Promise<FeedDrink[]> { return []; }
   subscribeDrinks(_onChange: (drinks: FeedDrink[]) => void): UnsubscribeFn {
     return () => undefined;

@@ -1,7 +1,8 @@
 import {
-  ChangeDetectionStrategy, Component, inject, output,
+  ChangeDetectionStrategy, Component, inject, output, signal,
 } from '@angular/core';
 import { StorageService } from '../services/storage.service';
+import { WskSyncService } from '../services/wsk-sync.service';
 import { WskChartComponent } from './wsk-chart.component';
 import { WskFeedComponent } from './wsk-feed.component';
 
@@ -46,6 +47,18 @@ import { WskFeedComponent } from './wsk-feed.component';
             <span class="identity-name">{{ id.name }}</span>
           </div>
           <button class="btn btn-ghost" type="button" (click)="claimRequested.emit()">Ändra</button>
+        </div>
+        <div class="identity-footer">
+          <button class="btn btn-ghost leave-btn"
+                  type="button"
+                  [class.confirming]="confirmingLeave()"
+                  (click)="confirmLeave()">
+            @if (confirmingLeave()) {
+              Tryck igen för att lämna WSK
+            } @else {
+              Lämna WSK
+            }
+          </button>
         </div>
       } @else {
         <div class="identity-row">
@@ -105,9 +118,48 @@ import { WskFeedComponent } from './wsk-feed.component';
       font-style: italic;
     }
     .small { font-size: 0.8rem; }
+
+    .identity-footer {
+      display: flex;
+      justify-content: flex-end;
+      padding-top: 0.5rem;
+      margin-top: 0.5rem;
+      border-top: 1px dashed var(--border);
+    }
+    .leave-btn {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      padding: 0.3rem 0.65rem;
+    }
+    .leave-btn.confirming {
+      color: var(--red);
+      font-style: italic;
+      font-family: var(--font-display);
+    }
   `],
 })
 export class WskTabComponent {
   claimRequested = output<void>();
   protected storage = inject(StorageService);
+  private sync = inject(WskSyncService);
+
+  protected confirmingLeave = signal(false);
+  private confirmHandle?: ReturnType<typeof setTimeout>;
+
+  /**
+   * Two-tap leave: first tap arms the confirmation, second within 3 s
+   * fires WskSyncService.leaveWsk which clears server state + local
+   * identity. Matches the clear-all-history pattern in Solo so users
+   * recognise the gesture.
+   */
+  protected confirmLeave(): void {
+    if (!this.confirmingLeave()) {
+      this.confirmingLeave.set(true);
+      this.confirmHandle = setTimeout(() => this.confirmingLeave.set(false), 3000);
+      return;
+    }
+    if (this.confirmHandle) clearTimeout(this.confirmHandle);
+    this.confirmingLeave.set(false);
+    void this.sync.leaveWsk();
+  }
 }

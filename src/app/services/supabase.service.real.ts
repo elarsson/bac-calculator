@@ -324,6 +324,27 @@ export class SupabaseService {
    * Called when the user toggles Smygsuper — we treat it as a hard
    * privacy reset to remove anything that was uploaded under Festar.
    */
+  /**
+   * Full exit from WSK: wipes Festar-time content first, then removes
+   * the avatar blob and the participants row itself. The participants
+   * row's ON DELETE CASCADE drops any remaining reactions and drinks
+   * that wipeOwnContent might have missed. After this returns there is
+   * no trace of the user on the server beyond what other participants
+   * may have quoted in their own messages.
+   */
+  async deleteParticipant(participantName: string): Promise<void> {
+    if (!this.client) return;
+    try {
+      await this.wipeOwnContent(participantName);
+      await this.client.storage.from(PHOTO_BUCKET).remove([
+        `avatars/${encodeURIComponent(participantName)}.jpg`,
+      ]);
+      await this.client.from('participants').delete().eq('name', participantName);
+    } catch {
+      // best-effort
+    }
+  }
+
   async wipeOwnContent(participantName: string): Promise<void> {
     if (!this.client) return;
     try {
