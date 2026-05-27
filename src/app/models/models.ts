@@ -39,6 +39,18 @@ export interface FeedDrink {
   photoUrl?: string;
 }
 
+/** What gets shown when the user toggles Festar → Smygsuper. */
+export interface SessionSummary {
+  startedAt: number;
+  endedAt: number;
+  drinkCount: number;
+  /** Peak BAC reached, in % (multiply ×10 for promille display). */
+  peakBac: number;
+  /** Total ethanol mass consumed during the session (grams). */
+  totalGrams: number;
+  categoryCounts: Partial<Record<DrinkCategoryKey, number>>;
+}
+
 /** Lightweight payload uploaded per Festar tick. */
 export interface BacCurvePayload {
   participantName: string;

@@ -1,5 +1,5 @@
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
-import { BacCurvePayload, Drink, FeedDrink, Reaction, ReactionKind } from '../models/models';
+import { BacCurvePayload, Drink, FeedDrink, Reaction, ReactionKind, SessionSummary } from '../models/models';
 import { BacService } from './bac.service';
 import { PhotoStoreService } from './photo-store.service';
 import { StorageService } from './storage.service';
@@ -58,6 +58,13 @@ export class WskSyncService {
   readonly reactions = signal<Reaction[]>([]);
   /** Participant directory keyed by name (avatars, etc.). */
   readonly participantsDir = signal<ParticipantMeta[]>([]);
+  /**
+   * Set when the user toggles Festar → Smygsuper while there was an
+   * active session to summarise. AppComponent watches this and shows
+   * the summary modal; calling clearLastSession() dismisses it.
+   * Stays null for the Lämna WSK path (no summary on full exit).
+   */
+  readonly lastSession = signal<SessionSummary | null>(null);
 
   private uploadHandle?: ReturnType<typeof setInterval>;
   private unsubscribe?: UnsubscribeFn;
@@ -103,6 +110,10 @@ export class WskSyncService {
         // extra dependency that would re-trigger it on every clear.
         const wasSharing = untracked(() => this.storage.sharingStartedAt() !== null);
         if (wasSharing && identity && this.supabase.configured) {
+          // Capture the summary before clearing local state below; the
+          // computation needs the still-set sharingStartedAt + drinks.
+          const summary = untracked(() => this.computeSessionSummary());
+          if (summary) this.lastSession.set(summary);
           // Single server-side bulk delete; doesn't rely on the local
           // feed mirror, so drinks uploaded just before toggle-off can't
           // survive due to subscription lag.
@@ -244,9 +255,48 @@ export class WskSyncService {
     }
     this.stopUploading();
     this.uploadedDrinkIds.clear();
-    this.storage.setSharingMode('smygsuper');
+    // Order matters: clear sharingStartedAt *before* sharingMode so the
+    // mode-change effect sees wasSharing = false and doesn't pop a
+    // summary modal — the user is leaving entirely, not winding down a
+    // session. Clearing wskIdentity afterwards also short-circuits the
+    // wipe branch (which the deleteParticipant call already handled).
     this.storage.setSharingStartedAt(null);
+    this.storage.setSharingMode('smygsuper');
     this.storage.setWskIdentity(null);
+  }
+
+  clearLastSession(): void { this.lastSession.set(null); }
+
+  private computeSessionSummary(): SessionSummary | null {
+    const profile = this.storage.profile();
+    const start = this.storage.sharingStartedAt();
+    if (!profile || start === null) return null;
+
+    const drinks = this.storage.drinks().filter(
+      d => new Date(d.timestamp).getTime() >= start,
+    );
+    if (drinks.length === 0) return null;
+
+    const now = Date.now();
+    const curve = this.bac.computeCurve(drinks, profile, now);
+    const totalGrams = drinks.reduce(
+      (sum, d) => sum + d.volumeMl * (d.abv / 100) * 0.789,
+      0,
+    );
+    const categoryCounts: SessionSummary['categoryCounts'] = {};
+    for (const d of drinks) {
+      if (d.category) {
+        categoryCounts[d.category] = (categoryCounts[d.category] ?? 0) + 1;
+      }
+    }
+    return {
+      startedAt: start,
+      endedAt: now,
+      drinkCount: drinks.length,
+      peakBac: curve.peakBac,
+      totalGrams,
+      categoryCounts,
+    };
   }
 
   /**
