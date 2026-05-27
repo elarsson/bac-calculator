@@ -9,6 +9,8 @@ export interface ClaimResult {
 export interface ParticipantMeta {
   name: string;
   avatarUrl?: string;
+  /** Wall-clock ms of last server-recorded activity (curve/drink/reaction). */
+  lastSeenAt?: number;
 }
 
 export type UnsubscribeFn = () => void;

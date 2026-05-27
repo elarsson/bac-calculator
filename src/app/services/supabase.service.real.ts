@@ -13,6 +13,7 @@ export interface ClaimResult {
 export interface ParticipantMeta {
   name: string;
   avatarUrl?: string;
+  lastSeenAt?: number;
 }
 
 export type UnsubscribeFn = () => void;
@@ -21,10 +22,15 @@ interface ParticipantRow {
   name: string;
   avatar_url: string | null;
   device_id: string;
+  last_seen_at: string | null;
 }
 
 function participantRowToMeta(row: ParticipantRow): ParticipantMeta {
-  return { name: row.name, avatarUrl: row.avatar_url ?? undefined };
+  return {
+    name: row.name,
+    avatarUrl: row.avatar_url ?? undefined,
+    lastSeenAt: row.last_seen_at ? new Date(row.last_seen_at).getTime() : undefined,
+  };
 }
 
 interface BacCurveRow {
@@ -454,7 +460,9 @@ export class SupabaseService {
   async fetchParticipants(): Promise<ParticipantMeta[]> {
     if (!this.client) return [];
     try {
-      const { data, error } = await this.client.from('participants').select('name, avatar_url, device_id');
+      const { data, error } = await this.client
+        .from('participants')
+        .select('name, avatar_url, device_id, last_seen_at');
       if (error || !data) return [];
       return (data as ParticipantRow[]).map(participantRowToMeta);
     } catch {

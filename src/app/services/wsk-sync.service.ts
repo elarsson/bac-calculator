@@ -221,6 +221,18 @@ export class WskSyncService {
   }
 
   /**
+   * A participant is "stale" when their last_seen_at is older than 90 s,
+   * three curve-upload cycles. They likely backgrounded the browser or
+   * dropped offline; legend dims them so the rest of the group can see
+   * who is actually live in the room.
+   */
+  isStale(name: string, nowMs: number): boolean {
+    const meta = this.participantsDir().find(p => p.name === name);
+    if (!meta?.lastSeenAt) return false;
+    return nowMs - meta.lastSeenAt > 90_000;
+  }
+
+  /**
    * Post a reaction. Returns false if the user has not claimed a name
    * yet (caller should prompt for one); true otherwise (even if the
    * server insert failed — fire and forget).

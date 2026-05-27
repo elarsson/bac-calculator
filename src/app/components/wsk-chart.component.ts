@@ -42,7 +42,7 @@ function colorFor(name: string): string {
       </div>
       <ul class="legend">
         @for (p of participants(); track p.participantName) {
-          <li>
+          <li [class.stale]="isStale(p.participantName)">
             <app-distorted-avatar
               [src]="avatarFor(p.participantName)"
               [name]="p.participantName"
@@ -50,6 +50,9 @@ function colorFor(name: string): string {
               [size]="36" />
             <span class="line-color" [style.background]="colorFor(p.participantName)"></span>
             <span class="name">{{ p.participantName }}</span>
+            @if (isStale(p.participantName)) {
+              <span class="stale-tag">borta</span>
+            }
             <span class="bac mono">{{ (p.currentBac * 10).toFixed(2) }} ‰</span>
           </li>
         }
@@ -99,12 +102,27 @@ function colorFor(name: string): string {
       font-style: italic;
     }
     .bac { color: var(--text-muted); }
+
+    .legend li.stale {
+      opacity: 0.55;
+    }
+    .stale-tag {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      padding: 0.1rem 0.35rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-family: var(--font-mono);
+    }
   `],
 })
 export class WskChartComponent implements OnInit, OnDestroy {
   private sync = inject(WskSyncService);
   protected colorFor = colorFor;
   protected avatarFor = (name: string): string | undefined => this.sync.avatarFor(name);
+  protected isStale = (name: string): boolean => this.sync.isStale(name, this.now());
 
   now = signal(Date.now());
   private tickHandle?: ReturnType<typeof setInterval>;
